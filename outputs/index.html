@@ -194,6 +194,13 @@
     .cause-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .cause-fields .field.full { grid-column: 1 / -1; }
     .cause-panel textarea { min-height: 64px; }
+    .why-panel { margin: 0 0 20px; border: 1px solid #dbe8e8; border-radius: 9px; background: #f8fcfc; padding: 13px; }
+    .why-panel .card-subtitle { line-height: 1.45; }
+    .why-list { display: grid; gap: 8px; margin-top: 11px; }
+    .why-row { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 9px; }
+    .why-row label { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .why-row input { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; background: #fff; color: var(--ink); font: inherit; font-size: 10px; outline: none; }
+    .why-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(27,196,196,.12); }
     .capa-handoff { margin: 0 0 20px; border: 1px solid #dce5f5; border-radius: 9px; background: #f6f9ff; padding: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .capa-handoff strong { display: block; font-size: 11px; }
     .capa-handoff p { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 4px; }
@@ -561,6 +568,16 @@
     document.addEventListener('click', event => { if (event.target.closest('[data-view="parts"]')) setTimeout(decorateInspectionSignalRows, 0); }, true);
     document.addEventListener('click', event => { const button = event.target.closest('#exportInspectionRecords'); if (!button) return; event.preventDefault(); event.stopImmediatePropagation(); const headers = ['Record', 'Recorded at', 'Part', 'Lot', 'Characteristic', 'Measurement', 'Result', 'Defect code', 'Operator', 'Notes', 'SPC rule', 'SPC limit', 'SPC observed']; const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const csv = [headers, ...inspectionRecords.map(record => [record.id, record.recordedAt, record.part, record.lot, record.characteristic, record.value, record.result, record.defectCode, record.operator, record.notes, record.spcSignal?.rule || '', record.spcSignal?.limit || '', record.spcSignal?.observed || ''])].map(row => row.map(csvCell).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-inspection-records.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); showToast('Inspection records exported with SPC context.'); }, true);
     document.addEventListener('submit', event => { if (event.target.id === 'inspectionForm') setTimeout(decorateInspectionSignalRows, 0); });
+    const defaultFiveWhys = ['Burr height increased during the current tool interval.', 'The deburr edge may be worn or chipped.', 'Tool wear has not been tied to a measured replacement trigger.', 'The control plan relies on a fixed interval instead of capability evidence.', 'The supplier setup standard needs a capability-based tool-change rule.'];
+    function loadFiveWhys() { try { const saved = JSON.parse(localStorage.getItem('qualityos-five-whys') || 'null'); return Array.from({ length: 5 }, (_, index) => typeof saved?.[index] === 'string' ? saved[index] : defaultFiveWhys[index]); } catch (error) { return defaultFiveWhys.slice(); } }
+    function saveFiveWhys() { try { localStorage.setItem('qualityos-five-whys', JSON.stringify(fiveWhys)); } catch (error) { /* local file storage can be unavailable */ } }
+    let fiveWhys = loadFiveWhys();
+    causeHypothesis.fiveWhys = fiveWhys;
+    const causeRoot = document.querySelector('#investigationModal .cause-panel');
+    if (causeRoot && !document.getElementById('fiveWhysPanel')) { const panel = document.createElement('div'); panel.id = 'fiveWhysPanel'; panel.className = 'why-panel'; panel.innerHTML = '<div class="containment-head"><strong>5-Why cause chain</strong><span class="status-pill amber" id="fiveWhysSavedState">Working hypothesis</span></div><p class="card-subtitle">Build the causal narrative one layer at a time. These answers remain linked to NCR-0264.</p><div class="why-list">' + defaultFiveWhys.map((answer, index) => '<div class="why-row"><label for="why' + (index + 1) + '">Why ' + (index + 1) + '</label><input id="why' + (index + 1) + '" placeholder="Capture the next causal layer..." /></div>').join('') + '</div><div class="modal-actions" style="margin-top:12px;"><span class="card-subtitle" style="margin-right:auto;">Linked to NCR-0264</span><button class="secondary-button" type="button" id="saveFiveWhys">Save 5-Why chain</button></div>'; causeRoot.insertAdjacentElement('afterend', panel); }
+    fiveWhys.forEach((answer, index) => { const input = document.getElementById('why' + (index + 1)); if (input) input.value = answer; });
+    document.getElementById('saveFiveWhys')?.addEventListener('click', () => { fiveWhys = Array.from({ length: 5 }, (_, index) => document.getElementById('why' + (index + 1))?.value.trim() || 'Not yet answered'); causeHypothesis.fiveWhys = fiveWhys; saveFiveWhys(); document.getElementById('fiveWhysSavedState').textContent = 'Saved locally'; recordEvent('⌕', 'blue', '5-Why cause chain saved', 'NCR-0264 cause analysis'); showToast('5-Why cause chain saved for NCR-0264.'); });
+    document.getElementById('saveCauseHypothesis').addEventListener('click', () => { causeHypothesis.fiveWhys = fiveWhys; });
   </script>
 </body>
 </html>

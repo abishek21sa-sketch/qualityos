@@ -11,6 +11,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Inspection-result entry for a part and lot with measurement, result, defect code, notes, and a recent inspection log.
 - NCR-0264 quality-packet export with signal, containment, disposition, CAPA, and evidence context.
 - NCR-0264 quality-packet export also includes inspection records for the active lot.
+- Browser-local 5-Why cause chain for NCR-0264, carried with the root-cause context.
 - Browser-local audit trail for key operator decisions and handoffs.
 
 ## Scope note
