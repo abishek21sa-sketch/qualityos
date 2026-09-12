@@ -15,7 +15,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 - Persisted records and audit history.
 - Signal inbox with acknowledgement, assignment, severity, and saved filters.
 - Lot genealogy and supplier scorecards.
-- Inspection entry and defect-code management.
+- Inspection entry and defect-code management (initial browser-local inspection slice implemented).
 - Evidence upload, preview, and verification workflow.
 - Configurable containment templates.
 

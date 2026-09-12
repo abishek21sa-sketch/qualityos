@@ -8,11 +8,13 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Signal inbox, investigation queue, corrective-action register, parts/suppliers, and evidence-library views.
 - Investigation modal for `NCR-0264` / lot `L240908-17`.
 - Corrective-action form with browser-local persistence and activity updates.
+- Inspection-result entry for a part and lot with measurement, result, defect code, notes, and a recent inspection log.
 - NCR-0264 quality-packet export with signal, containment, disposition, CAPA, and evidence context.
+- NCR-0264 quality-packet export also includes inspection records for the active lot.
 - Browser-local audit trail for key operator decisions and handoffs.
 
 ## Scope note
 
-The additional views are fixture-backed workflow shells for continued product exploration. They do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
+The additional views are fixture-backed workflow shells for continued product exploration. Operator-created records persist in the browser only; they do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Pages, Vercel, and Render setup, and [ARCHITECTURE.md](ARCHITECTURE.md) for the browser-local-to-production migration plan.
