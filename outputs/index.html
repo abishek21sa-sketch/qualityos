@@ -357,6 +357,9 @@
     function loadSignalOwners() { try { const saved = JSON.parse(localStorage.getItem('qualityos-signal-owners') || '{}'); return saved && typeof saved === 'object' ? saved : {}; } catch (error) { return {}; } }
     function saveSignalOwners() { try { localStorage.setItem('qualityos-signal-owners', JSON.stringify(signalOwners)); } catch (error) { /* local file storage can be unavailable */ } }
     let signalOwners = loadSignalOwners();
+    function loadSignalNotes() { try { const saved = JSON.parse(localStorage.getItem('qualityos-signal-notes') || '{}'); return saved && typeof saved === 'object' ? saved : {}; } catch (error) { return {}; } }
+    function saveSignalNotes() { try { localStorage.setItem('qualityos-signal-notes', JSON.stringify(signalNotes)); } catch (error) { /* local file storage can be unavailable */ } }
+    let signalNotes = loadSignalNotes();
     let activeSignalId = null;
     function loadLotDisposition() { try { return localStorage.getItem('qualityos-lot-disposition') || 'Hold — sort in progress'; } catch (error) { return 'Hold — sort in progress'; } }
     let lotDisposition = loadLotDisposition();
@@ -382,7 +385,7 @@
     function escapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
     function recordEvent(icon, tone, title, detail) { activityEvents.unshift({ icon, tone, title, detail, time: 'Just now' }); saveActivityEvents(); if (currentView === 'overview') renderLocalActivity(); }
     let toastTimer;
-    function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; if (id === 'signalModal') { const owner = signalOwners[activeSignalId] || activeSignalRow?.querySelectorAll('td')[5]?.textContent.trim() || 'Unassigned'; const ownerSelect = document.getElementById('signalOwner'); if (ownerSelect) ownerSelect.value = owner; } }
+    function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; if (id === 'signalModal') { const owner = signalOwners[activeSignalId] || activeSignalRow?.querySelectorAll('td')[5]?.textContent.trim() || 'Unassigned'; const ownerSelect = document.getElementById('signalOwner'); if (ownerSelect) ownerSelect.value = owner; const note = document.getElementById('signalNote'); if (note) note.value = signalNotes[activeSignalId] || ''; } }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); if (!modalIds.some(x => document.getElementById(x).classList.contains('open'))) document.body.style.overflow = ''; }
     function showToast(message) { clearTimeout(toastTimer); toast.textContent = message; toast.classList.add('show'); toastTimer = setTimeout(() => toast.classList.remove('show'), 3600); }
     const phaseViews = {
@@ -474,6 +477,7 @@
     document.getElementById('openLotInvestigation').addEventListener('click', () => { closeModal('lotModal'); openModal('investigationModal'); });
     document.getElementById('acknowledgeSignal').addEventListener('click', () => { const title = document.getElementById('signalRecordTitle').textContent; if (activeSignalRow) { const state = activeSignalRow.querySelector('.status-pill'); if (state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } } if (activeSignalId) { acknowledgedSignals.add(activeSignalId); saveAcknowledgedSignals(); } closeModal('signalModal'); showToast(`${title} acknowledged and assigned for follow-up.`); });
     document.getElementById('acknowledgeSignal').addEventListener('click', () => { if (!activeSignalId) return; const owner = document.getElementById('signalOwner').value; signalOwners[activeSignalId] = owner; saveSignalOwners(); const ownerCell = activeSignalRow?.querySelectorAll('td')[5]; if (ownerCell) ownerCell.textContent = owner; });
+    document.getElementById('acknowledgeSignal').addEventListener('click', () => { if (!activeSignalId) return; const note = document.getElementById('signalNote').value.trim(); if (note) signalNotes[activeSignalId] = note; else delete signalNotes[activeSignalId]; saveSignalNotes(); });
     document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(backdrop.id); }));
     document.addEventListener('keydown', e => { if (e.key === 'Escape') modalIds.forEach(closeModal); });
