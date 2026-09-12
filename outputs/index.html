@@ -351,6 +351,9 @@
     function loadAcknowledgedSignals() { try { const saved = JSON.parse(localStorage.getItem('qualityos-acknowledged-signals') || '[]'); return new Set(Array.isArray(saved) ? saved : []); } catch (error) { return new Set(); } }
     function saveAcknowledgedSignals() { try { localStorage.setItem('qualityos-acknowledged-signals', JSON.stringify([...acknowledgedSignals])); } catch (error) { /* local file storage can be unavailable */ } }
     let acknowledgedSignals = loadAcknowledgedSignals();
+    function loadSignalFilter() { try { return localStorage.getItem('qualityos-signal-filter') || 'All severities'; } catch (error) { return 'All severities'; } }
+    function saveSignalFilter() { try { localStorage.setItem('qualityos-signal-filter', signalFilter); } catch (error) { /* local file storage can be unavailable */ } }
+    let signalFilter = loadSignalFilter();
     let activeSignalId = null;
     function loadLotDisposition() { try { return localStorage.getItem('qualityos-lot-disposition') || 'Hold — sort in progress'; } catch (error) { return 'Hold — sort in progress'; } }
     let lotDisposition = loadLotDisposition();
@@ -423,6 +426,7 @@
           const matches = filter.startsWith('All') || status.toLowerCase().includes(filter.replace(' risk', '').toLowerCase()) || risk.toLowerCase().includes(filter.replace(' risk', '').toLowerCase());
           row.style.display = matches ? '' : 'none';
         });
+        if (currentView === 'signals' && select.querySelector('option')?.textContent === 'All severities') { signalFilter = filter; saveSignalFilter(); }
         showToast(filter.startsWith('All') ? 'Showing all records.' : `Filtered to ${filter.toLowerCase()}.`);
       }));
       document.querySelectorAll('.link-button:not([data-nav])').forEach(btn => { if (!btn.dataset.investigation) btn.addEventListener('click', () => {
@@ -448,13 +452,14 @@
       document.getElementById('crumbCurrent').textContent = label || viewLabels[view];
       mainContent.innerHTML = view === 'overview' ? overviewMarkup : (phaseViews[view] || phaseViews.signals);
       bindViewEvents();
-      if (view === 'signals') restoreAcknowledgedSignals();
+      if (view === 'signals') { restoreAcknowledgedSignals(); restoreSignalFilter(); }
       if (view === 'evidence') renderEvidenceRequests();
       if (view === 'actions') renderCapaRecords();
       if (view === 'parts') { renderPartsTraceability(); renderInspectionRecords(); setupInspectionControls(); }
       if (view === 'overview') renderLocalActivity();
     }
     function restoreAcknowledgedSignals() { mainContent.querySelectorAll('tbody tr').forEach(row => { const id = row.querySelector('.record-code')?.textContent.trim(); const state = row.querySelector('.status-pill'); if (id && acknowledgedSignals.has(id) && state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } }); }
+    function restoreSignalFilter() { const select = mainContent.querySelector('.filter-select'); if (!select || select.querySelector('option')?.textContent !== 'All severities') return; if ([...select.options].some(option => option.value === signalFilter)) select.value = signalFilter; const filter = select.value; const query = filter.replace(' risk', '').toLowerCase(); mainContent.querySelectorAll('tbody tr').forEach(row => { const status = row.querySelector('.status-pill')?.textContent.trim().toLowerCase() || ''; const risk = row.querySelector('.risk')?.textContent.trim().toLowerCase() || ''; row.style.display = filter.startsWith('All') || status.includes(query) || risk.includes(query) ? '' : 'none'; }); }
     function renderEvidenceRequests() { if (!evidenceRequests.length) return; const card = mainContent.querySelector('.data-card'); if (!card) return; let feed = document.getElementById('evidenceRequestFeed'); if (!feed) { feed = document.createElement('div'); feed.id = 'evidenceRequestFeed'; card.appendChild(feed); } feed.innerHTML = `<div class="card-header"><div><div class="card-title">Recent requests</div><div class="card-subtitle">Browser-local requests created from this workspace.</div></div></div>${evidenceRequests.map(request => `<div class="evidence-row"><div class="file-mark">↗</div><div class="file-copy"><strong>${request.kind} · ${request.supplier}</strong><span>${request.linked} · Due ${request.due} · ${request.note}</span></div><span class="status-pill red">Requested</span></div>`).join('')}`; }
     function renderCapaRecords() { if (!capas.length) return; const root = mainContent.querySelector('.phase-view'); if (!root) return; const card = document.createElement('div'); card.className = 'card data-card'; card.innerHTML = `<div class="card-header"><div><div class="card-title">CAPA / 8D register</div><div class="card-subtitle">Structured follow-up records created from investigations.</div></div><span class="status-pill amber">${capas.length} open</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Record</th><th>Method</th><th>Owner</th><th>Scope</th><th>Effectiveness check</th><th>Status</th></tr></thead><tbody>${capas.map(capa => `<tr><td><span class="record-code">${capa.id}</span><span class="record-name">BRK-204 burr excursion</span></td><td>${capa.method}</td><td>${capa.owner.split(' · ')[0]}</td><td>${capa.scope}</td><td>${capa.due || 'Not set'}</td><td><span class="status-pill amber">${capa.status}</span></td></tr>`).join('')}</tbody></table></div>`; root.appendChild(card); }
     function renderPartsTraceability() { const heading = mainContent.querySelector('.page-heading'); if (!heading || heading.querySelector('#traceLotButton')) return; const button = document.createElement('button'); button.id = 'traceLotButton'; button.className = 'primary-button'; button.type = 'button'; button.textContent = 'Trace active lot'; button.addEventListener('click', () => openModal('lotModal')); const current = heading.querySelector('.date-control'); if (current) { const group = document.createElement('div'); group.style.display = 'flex'; group.style.gap = '8px'; group.append(button, current); heading.appendChild(group); } else heading.appendChild(button); }
