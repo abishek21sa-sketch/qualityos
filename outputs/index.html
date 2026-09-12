@@ -384,6 +384,9 @@
     function loadEvidenceRequests() { try { const saved = JSON.parse(localStorage.getItem('qualityos-evidence-requests') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
     function saveEvidenceRequests() { try { localStorage.setItem('qualityos-evidence-requests', JSON.stringify(evidenceRequests)); } catch (error) { /* local file storage can be unavailable */ } }
     let evidenceRequests = loadEvidenceRequests();
+    function loadEvidenceFilter() { try { return localStorage.getItem('qualityos-evidence-filter') || 'All evidence'; } catch (error) { return 'All evidence'; } }
+    function saveEvidenceFilter() { try { localStorage.setItem('qualityos-evidence-filter', evidenceFilter); } catch (error) { /* local file storage can be unavailable */ } }
+    let evidenceFilter = loadEvidenceFilter();
     function loadCapas() { try { const saved = JSON.parse(localStorage.getItem('qualityos-capas') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
     function saveCapas() { try { localStorage.setItem('qualityos-capas', JSON.stringify(capas)); } catch (error) { /* local file storage can be unavailable */ } }
     let capas = loadCapas();
@@ -456,6 +459,7 @@
           row.style.display = matches ? '' : 'none';
         });
         if (currentView === 'signals' && select.querySelector('option')?.textContent === 'All severities') { signalFilter = filter; saveSignalFilter(); }
+        if (currentView === 'evidence' && select.querySelector('option')?.textContent === 'All evidence') { evidenceFilter = filter; saveEvidenceFilter(); }
         showToast(filter.startsWith('All') ? 'Showing all records.' : `Filtered to ${filter.toLowerCase()}.`);
       }));
       document.querySelectorAll('.link-button:not([data-nav])').forEach(btn => { if (!btn.dataset.investigation) btn.addEventListener('click', () => {
@@ -482,13 +486,14 @@
       mainContent.innerHTML = view === 'overview' ? overviewMarkup : (phaseViews[view] || phaseViews.signals);
       bindViewEvents();
       if (view === 'signals') { restoreAcknowledgedSignals(); restoreSignalAssignments(); restoreSignalFilter(); }
-      if (view === 'evidence') { renderEvidenceRequests(); bindEvidenceVerification(); }
+      if (view === 'evidence') { renderEvidenceRequests(); bindEvidenceVerification(); restoreEvidenceFilter(); }
       if (view === 'actions') { renderCapaRecords(); bindActionStatusControls(); }
       if (view === 'parts') { renderPartsTraceability(); renderInspectionRecords(); setupInspectionControls(); renderDefectCodeCatalog(); renderSupplierScorecards(); }
       if (view === 'overview') renderLocalActivity();
     }
     function restoreAcknowledgedSignals() { mainContent.querySelectorAll('tbody tr').forEach(row => { const id = row.querySelector('.record-code')?.textContent.trim(); const state = row.querySelector('.status-pill'); if (id && acknowledgedSignals.has(id) && state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } }); }
     function restoreSignalFilter() { const select = mainContent.querySelector('.filter-select'); if (!select || select.querySelector('option')?.textContent !== 'All severities') return; if ([...select.options].some(option => option.value === signalFilter)) select.value = signalFilter; const filter = select.value; const query = filter.replace(' risk', '').toLowerCase(); mainContent.querySelectorAll('tbody tr').forEach(row => { const status = row.querySelector('.status-pill')?.textContent.trim().toLowerCase() || ''; const risk = row.querySelector('.risk')?.textContent.trim().toLowerCase() || ''; row.style.display = filter.startsWith('All') || status.includes(query) || risk.includes(query) ? '' : 'none'; }); }
+    function restoreEvidenceFilter() { const select = mainContent.querySelector('.filter-select'); if (!select || select.querySelector('option')?.textContent !== 'All evidence') return; if ([...select.options].some(option => option.value === evidenceFilter)) select.value = evidenceFilter; const filter = select.value; const query = filter.toLowerCase(); const card = select.closest('.card'); (card ? card.querySelectorAll('tbody tr, .evidence-row') : []).forEach(row => { const status = row.querySelector('.status-pill')?.textContent.trim().toLowerCase() || ''; row.style.display = filter.startsWith('All') || status.includes(query) ? '' : 'none'; }); }
     function restoreSignalAssignments() { mainContent.querySelectorAll('tbody tr').forEach(row => { const id = row.querySelector('.record-code')?.textContent.trim(); const owner = signalOwners[id]; const ownerCell = row.querySelectorAll('td')[5]; if (owner && ownerCell) ownerCell.textContent = owner; }); }
     function renderEvidenceRequests() { if (!evidenceRequests.length) return; const card = mainContent.querySelector('.data-card'); if (!card) return; let feed = document.getElementById('evidenceRequestFeed'); if (!feed) { feed = document.createElement('div'); feed.id = 'evidenceRequestFeed'; card.appendChild(feed); } feed.innerHTML = `<div class="card-header"><div><div class="card-title">Recent requests</div><div class="card-subtitle">Browser-local requests created from this workspace.</div></div></div>${evidenceRequests.map(request => `<div class="evidence-row"><div class="file-mark">↗</div><div class="file-copy"><strong>${request.kind} · ${request.supplier}</strong><span>${request.linked} · Due ${request.due} · ${request.note}</span></div><span class="status-pill red">Requested</span></div>`).join('')}`; }
     function bindEvidenceVerification() { const feed = document.getElementById('evidenceRequestFeed'); if (!feed) return; feed.querySelectorAll('.evidence-row').forEach((row, index) => { const request = evidenceRequests[index]; if (!request) return; const status = request.status || 'Requested'; const statusPill = row.querySelector('.status-pill'); if (statusPill) { statusPill.textContent = status; statusPill.className = `status-pill ${status === 'Verified' ? 'green' : status === 'Review' ? 'amber' : 'red'}`; } if (status === 'Verified' || row.querySelector('[data-verify-evidence]')) return; const button = document.createElement('button'); button.type = 'button'; button.className = 'link-button'; button.dataset.verifyEvidence = request.linked; button.textContent = 'Mark verified'; button.addEventListener('click', () => { request.status = 'Verified'; request.verifiedAt = 'Just now'; saveEvidenceRequests(); recordEvent('✓', 'green', 'Evidence verified', `${request.kind} · ${request.linked}`); showToast(`${request.kind} marked verified.`); if (currentView === 'evidence') setView('evidence', viewLabels.evidence); }); row.appendChild(button); }); }
