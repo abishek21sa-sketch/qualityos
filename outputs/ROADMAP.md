@@ -22,7 +22,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 ## Phase 3 — Quality intelligence
 
 - Full SPC rule library with configurable limits and rational subgrouping.
-- Initial browser-local 5-Why cause chain is implemented; expand into fishbone and a full 8D/CAPA workspace.
+- Initial browser-local 5-Why cause chain and CAPA status workflow are implemented; expand into fishbone and a full 8D/CAPA workspace.
 - Risk-based prioritization and recurrence detection.
 - Effectiveness checks with before/after process capability.
 - Cross-plant benchmarking and supplier collaboration.
