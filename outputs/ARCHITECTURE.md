@@ -1,0 +1,46 @@
+# QualityOS architecture boundary
+
+## Current demo
+
+```text
+Browser
+  ├── Static HTML / CSS / JavaScript
+  ├── Fixture-backed quality views
+  └── localStorage for demo records and audit events
+       └── JSON export for NCR handoff
+```
+
+This is intentionally suitable for GitHub Pages, Vercel static hosting, or Render Static Site. There is no server-side secret, database, or authenticated user state in the current build.
+
+## Target production shape
+
+```text
+Browser app
+  ├── Authenticated API
+  │    ├── Quality domain service
+  │    ├── Audit/event service
+  │    └── Notification worker
+  ├── Relational database
+  │    ├── Parts, suppliers, lots, inspections
+  │    ├── Signals, NCRs, containment, actions
+  │    └── CAPA / 8D and effectiveness checks
+  └── Object storage
+       └── Evidence files, inspection exports, signed quality packets
+```
+
+## Migration sequence
+
+1. Keep the current fixture and UI contract stable.
+2. Replace the local fixture with a read-only `/api/quality/overview` response.
+3. Move actions, acknowledgements, dispositions, CAPA records, and audit events to authenticated API mutations.
+4. Add database-backed evidence metadata and object-storage uploads.
+5. Add role-based access, supplier access boundaries, and immutable audit events.
+6. Add SPC computation and notification jobs behind the API; keep the current UI focused on decisions.
+
+## Hosting recommendation
+
+- GitHub Pages: first public demo and portfolio review.
+- Vercel: best fit for preview-driven UI iteration and a future frontend/API split.
+- Render: best fit once the static UI sits beside a persistent API and database service.
+
+Keep the current static deployment as the demo surface until authentication, persistence, and evidence access controls exist. Quality records should not rely on browser `localStorage` beyond this prototype stage.

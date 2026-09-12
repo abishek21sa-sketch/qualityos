@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1726" />
+  <title>QualityOS — Manufacturing quality operations</title>
+  <style>
+    :root {
+      --ink: #122034;
+      --muted: #6f7c8d;
+      --muted-2: #8f9bab;
+      --line: #e6ebf1;
+      --canvas: #f4f6f8;
+      --surface: #ffffff;
+      --navy: #0b1726;
+      --navy-2: #13253b;
+      --cyan: #1bc4c4;
+      --cyan-dark: #078d98;
+      --amber: #e9a43a;
+      --amber-soft: #fff6e7;
+      --red: #df5b59;
+      --red-soft: #fff1f0;
+      --green: #39a879;
+      --green-soft: #edf9f3;
+      --shadow: 0 12px 28px rgba(16, 36, 59, .06);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--canvas); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; display: flex; }
+    .sidebar { width: 250px; min-height: 100vh; background: var(--navy); color: #dce6f2; display: flex; flex-direction: column; padding: 24px 16px 18px; position: fixed; inset: 0 auto 0 0; z-index: 10; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 24px; }
+    .brand-mark { width: 29px; height: 29px; border: 2px solid var(--cyan); border-radius: 8px; display: grid; place-items: center; position: relative; }
+    .brand-mark::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--cyan); box-shadow: 7px 7px 0 -2px #a0ece6; }
+    .brand-name { font-size: 17px; font-weight: 750; letter-spacing: -.02em; color: #fff; }
+    .workspace { border: 1px solid #28415b; border-radius: 9px; padding: 11px 12px; margin: 0 4px 25px; background: rgba(255,255,255,.035); }
+    .workspace-label, .eyebrow, .tiny-label { text-transform: uppercase; letter-spacing: .13em; font-size: 9px; font-weight: 750; color: var(--muted-2); }
+    .workspace-label { color: #7890a8; margin-bottom: 6px; }
+    .workspace-name { display: flex; justify-content: space-between; align-items: center; font-weight: 650; font-size: 12px; color: #f4f8fc; }
+    .workspace-name span:last-child { color: #7591aa; font-size: 15px; }
+    .nav-group { margin-bottom: 23px; }
+    .nav-title { padding: 0 12px 9px; color: #5f7993; text-transform: uppercase; font-size: 9px; letter-spacing: .16em; font-weight: 750; }
+    .nav-item { color: #9db0c4; display: flex; align-items: center; gap: 11px; width: 100%; border: 0; background: transparent; border-radius: 8px; padding: 10px 12px; text-align: left; font-size: 12px; margin: 2px 0; transition: .15s ease; }
+    .nav-item:hover { background: #142a42; color: #fff; }
+    .nav-item.active { background: #17334d; color: #fff; box-shadow: inset 3px 0 0 var(--cyan); }
+    .nav-icon { width: 17px; text-align: center; opacity: .8; font-size: 14px; }
+    .nav-item.active .nav-icon { opacity: 1; color: var(--cyan); }
+    .nav-badge { margin-left: auto; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center; font-size: 9px; color: #101c2b; background: var(--cyan); font-weight: 800; }
+    .sidebar-bottom { margin-top: auto; border-top: 1px solid #1e334b; padding: 17px 10px 0; }
+    .phase-chip { display: inline-flex; align-items: center; gap: 6px; color: #9ab4ca; font-size: 10px; margin-bottom: 9px; }
+    .phase-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px rgba(27,196,196,.1); }
+    .sidebar-note { color: #7188a0; font-size: 10px; line-height: 1.55; }
+    .main { margin-left: 250px; width: calc(100% - 250px); }
+    .topbar { height: 68px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.88); display: flex; align-items: center; justify-content: space-between; padding: 0 34px; position: sticky; top: 0; z-index: 5; backdrop-filter: blur(12px); }
+    .crumbs { display: flex; align-items: center; gap: 11px; font-size: 12px; color: var(--muted); }
+    .crumbs strong { color: var(--ink); font-weight: 700; }
+    .crumb-sep { color: #b8c1cb; }
+    .top-actions { display: flex; align-items: center; gap: 15px; }
+    .search { display: flex; align-items: center; gap: 8px; width: 190px; color: #8b97a4; font-size: 11px; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; background: #fbfcfd; }
+    .search input { border: 0; outline: 0; background: transparent; min-width: 0; width: 100%; color: var(--ink); font-size: 11px; }
+    .icon-button { border: 0; background: transparent; color: #7b8795; position: relative; font-size: 16px; padding: 6px; }
+    .notification-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); position: absolute; top: 4px; right: 4px; border: 1px solid white; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: #d9ebee; color: #126c78; display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+    .content { padding: 30px 34px 50px; max-width: 1500px; margin: 0 auto; }
+    .page-heading { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 26px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 25px; letter-spacing: -.035em; line-height: 1.1; }
+    .page-subtitle { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .date-control { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 9px 12px; color: #59697b; font-size: 11px; display: flex; gap: 9px; align-items: center; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 19px; }
+    .metric { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 17px 18px 15px; box-shadow: var(--shadow); min-height: 116px; }
+    .metric-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .metric-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .metric-icon { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 7px; font-size: 14px; }
+    .metric-icon.cyan { color: #0a858f; background: #e7fafa; }
+    .metric-icon.red { color: var(--red); background: var(--red-soft); }
+    .metric-icon.green { color: var(--green); background: var(--green-soft); }
+    .metric-icon.amber { color: #bd7c19; background: var(--amber-soft); }
+    .metric-value { font-size: 28px; font-weight: 750; letter-spacing: -.04em; margin-top: 11px; }
+    .metric-foot { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--muted); font-size: 10px; }
+    .up { color: var(--green); font-weight: 750; }
+    .down { color: var(--red); font-weight: 750; }
+    .grid-main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .95fr); gap: 18px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px 0; }
+    .card-title { font-size: 13px; font-weight: 750; letter-spacing: -.01em; }
+    .card-subtitle { color: var(--muted); font-size: 10px; margin-top: 5px; }
+    .link-button { border: 0; background: transparent; color: var(--cyan-dark); font-size: 10px; font-weight: 750; padding: 3px 0; }
+    .signal-card { overflow: hidden; }
+    .signal-banner { margin: 18px 20px 0; border-radius: 9px; border: 1px solid #f3d7a3; background: linear-gradient(100deg, #fff8eb, #fffdf7); padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .signal-main { display: flex; align-items: flex-start; gap: 11px; }
+    .signal-pulse { width: 28px; height: 28px; border-radius: 8px; background: #fff0cd; color: #c3851d; display: grid; place-items: center; font-size: 14px; flex: 0 0 auto; }
+    .signal-kicker { color: #b0771b; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .signal-title { font-size: 12px; font-weight: 750; margin-top: 3px; }
+    .signal-meta { color: #88775c; font-size: 10px; margin-top: 5px; }
+    .primary-button { border: 0; border-radius: 7px; background: var(--navy); color: white; padding: 9px 12px; font-size: 10px; font-weight: 750; white-space: nowrap; transition: .15s ease; }
+    .primary-button:hover { background: #183450; transform: translateY(-1px); }
+    .chart-wrap { padding: 15px 20px 14px; }
+    .chart-legend { display: flex; align-items: center; gap: 13px; color: var(--muted); font-size: 10px; margin-bottom: 7px; }
+    .legend-line { width: 17px; height: 2px; background: var(--cyan); display: inline-block; vertical-align: middle; margin-right: 4px; }
+    .legend-dash { width: 17px; border-top: 1px dashed #c2cbd5; display: inline-block; vertical-align: middle; margin-right: 4px; }
+    .chart { width: 100%; height: 190px; display: block; }
+    .chart-grid { stroke: #edf0f3; stroke-width: 1; }
+    .chart-label { fill: #98a2af; font-size: 9px; }
+    .chart-area { fill: url(#areaFill); }
+    .chart-line { fill: none; stroke: var(--cyan); stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-point { fill: #fff; stroke: var(--cyan); stroke-width: 2; }
+    .chart-point.alert { stroke: var(--red); fill: var(--red); }
+    .chart-ucl { fill: none; stroke: #c2cbd5; stroke-width: 1; stroke-dasharray: 4 4; }
+    .chart-callout { fill: var(--red); }
+    .chart-callout-text { fill: #fff; font-size: 8px; font-weight: 800; }
+    .chart-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f0f2f5; padding-top: 11px; color: var(--muted); font-size: 10px; }
+    .chart-foot strong { color: var(--ink); }
+    .investigation-card { padding-bottom: 16px; }
+    .status-pill { border-radius: 20px; padding: 5px 8px; font-size: 9px; font-weight: 750; }
+    .status-pill.red { color: #bd4f4e; background: var(--red-soft); }
+    .status-pill.amber { color: #a76b11; background: var(--amber-soft); }
+    .status-pill.green { color: #277b58; background: var(--green-soft); }
+    .case-summary { margin: 18px 20px 0; background: #f7f9fb; border: 1px solid #edf0f3; border-radius: 9px; padding: 13px; }
+    .case-id { color: var(--cyan-dark); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+    .case-name { font-weight: 750; font-size: 12px; margin-top: 5px; }
+    .case-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 16px; margin-top: 14px; }
+    .case-grid dt { color: var(--muted); font-size: 9px; margin-bottom: 3px; }
+    .case-grid dd { margin: 0; font-size: 10px; font-weight: 650; }
+    .timeline { margin: 19px 20px 0; display: flex; flex-direction: column; }
+    .timeline-step { display: grid; grid-template-columns: 21px 1fr; gap: 10px; position: relative; padding-bottom: 18px; }
+    .timeline-step:last-child { padding-bottom: 0; }
+    .timeline-step:not(:last-child)::before { content: ""; position: absolute; left: 9px; top: 18px; bottom: 0; border-left: 1px solid #dce5e9; }
+    .step-dot { z-index: 1; width: 19px; height: 19px; border-radius: 50%; background: #e8fafa; border: 4px solid #cdf4f1; box-shadow: 0 0 0 1px #a7e8e4; }
+    .step-dot.complete { background: var(--cyan); border-color: #d8f7f5; box-shadow: 0 0 0 1px #36caca; }
+    .step-dot.current { background: var(--amber); border-color: #fff2d7; box-shadow: 0 0 0 1px #e7ae4b; }
+    .step-heading { display: flex; justify-content: space-between; gap: 8px; }
+    .step-name { font-size: 11px; font-weight: 750; }
+    .step-time { color: var(--muted-2); font-size: 9px; white-space: nowrap; }
+    .step-copy { color: var(--muted); font-size: 10px; line-height: 1.45; margin-top: 3px; }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr); gap: 18px; margin-top: 18px; }
+    .table-wrap { padding: 15px 20px 6px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 10px; }
+    th { color: var(--muted-2); text-transform: uppercase; letter-spacing: .11em; font-size: 8px; font-weight: 750; text-align: left; padding: 0 10px 10px 0; white-space: nowrap; }
+    td { border-top: 1px solid #eff2f5; padding: 12px 10px 12px 0; vertical-align: middle; white-space: nowrap; }
+    td:first-child { font-weight: 700; color: #26364a; }
+    .bar-cell { width: 110px; }
+    .mini-bar { height: 5px; background: #edf2f4; border-radius: 5px; overflow: hidden; width: 95px; }
+    .mini-bar span { display: block; height: 100%; background: var(--cyan); border-radius: inherit; }
+    .activity-list { padding: 10px 20px 8px; }
+    .activity { padding: 12px 0; border-bottom: 1px solid #eff2f5; display: flex; gap: 10px; align-items: flex-start; }
+    .activity:last-child { border-bottom: 0; }
+    .activity-mark { width: 23px; height: 23px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; font-size: 11px; }
+    .activity-mark.blue { background: #eaf5fc; color: #3379a3; }
+    .activity-mark.green { background: var(--green-soft); color: var(--green); }
+    .activity-mark.red { background: var(--red-soft); color: var(--red); }
+    .activity-copy { font-size: 10px; line-height: 1.35; color: var(--muted); }
+    .activity-copy strong { color: var(--ink); font-weight: 700; }
+    .activity-time { display: block; color: var(--muted-2); font-size: 9px; margin-top: 3px; }
+    .empty-state { color: var(--muted); text-align: center; padding: 30px 20px; font-size: 11px; }
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(7, 17, 29, .52); z-index: 30; align-items: center; justify-content: center; padding: 20px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(670px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: #fff; border-radius: 14px; box-shadow: 0 24px 70px rgba(5, 17, 30, .3); }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 23px 25px 18px; border-bottom: 1px solid var(--line); }
+    .modal-kicker { color: var(--cyan-dark); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; font-size: 9px; }
+    .modal h2 { font-size: 20px; letter-spacing: -.03em; margin-top: 6px; }
+    .modal-close { border: 0; background: #f4f6f8; border-radius: 50%; width: 28px; height: 28px; color: var(--muted); }
+    .modal-body { padding: 20px 25px 25px; }
+    .investigation-top { display: grid; grid-template-columns: 1.1fr .9fr; gap: 14px; margin-bottom: 19px; }
+    .detail-box { border: 1px solid var(--line); border-radius: 9px; padding: 13px; }
+    .detail-box .tiny-label { margin-bottom: 7px; }
+    .detail-box strong { font-size: 12px; }
+    .modal-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .11em; color: var(--muted-2); font-weight: 800; margin-bottom: 11px; }
+    .containment-panel { margin: 18px 0 20px; border: 1px solid #dcefed; border-radius: 9px; background: #f6fbfb; padding: 13px; }
+    .containment-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .containment-head strong { font-size: 11px; }
+    .containment-progress { color: var(--cyan-dark); font-size: 10px; font-weight: 800; }
+    .progress-track { height: 5px; background: #dcefee; border-radius: 6px; overflow: hidden; margin-bottom: 11px; }
+    .progress-track span { display: block; height: 100%; width: 66%; background: var(--cyan); border-radius: inherit; transition: width .2s ease; }
+    .check-row { display: flex; align-items: center; gap: 8px; color: #5c6c7b; font-size: 10px; padding: 5px 0; }
+    .check-row input { accent-color: var(--cyan-dark); width: 14px; height: 14px; }
+    .check-row input:checked + span { color: #2d776d; text-decoration: line-through; }
+    .disposition-panel { margin: 0 0 20px; border: 1px solid #e6ebf1; border-radius: 9px; background: #fbfcfd; padding: 13px; }
+    .disposition-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .disposition-head strong { font-size: 11px; }
+    .disposition-panel .field { flex-direction: row; align-items: center; gap: 10px; }
+    .disposition-panel .field label { white-space: nowrap; }
+    .disposition-panel .field select { flex: 1; }
+    .cause-panel { margin: 0 0 20px; border: 1px solid #eadff0; border-radius: 9px; background: #fcf9fd; padding: 13px; }
+    .cause-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cause-fields .field.full { grid-column: 1 / -1; }
+    .cause-panel textarea { min-height: 64px; }
+    .capa-handoff { margin: 0 0 20px; border: 1px solid #dce5f5; border-radius: 9px; background: #f6f9ff; padding: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .capa-handoff strong { display: block; font-size: 11px; }
+    .capa-handoff p { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 4px; }
+    .genealogy { display: flex; flex-direction: column; gap: 0; border-left: 1px solid #d9e6e8; margin: 5px 0 4px 7px; padding-left: 18px; }
+    .genealogy-step { position: relative; padding: 0 0 17px; }
+    .genealogy-step:last-child { padding-bottom: 0; }
+    .genealogy-step::before { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); left: -23px; top: 3px; box-shadow: 0 0 0 3px #e1f7f5; }
+    .genealogy-step strong { display: block; font-size: 11px; }
+    .genealogy-step span { display: block; color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 3px; }
+    .modal-timeline { border-left: 1px solid #d9e6e8; padding-left: 17px; margin-left: 5px; }
+    .modal-event { position: relative; margin-bottom: 15px; }
+    .modal-event::before { content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); left: -21px; top: 3px; box-shadow: 0 0 0 3px #e3f7f5; }
+    .modal-event strong { font-size: 11px; }
+    .modal-event p { color: var(--muted); font-size: 10px; margin-top: 3px; line-height: 1.45; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 10px; font-weight: 750; color: #59697b; }
+    .field input, .field select, .field textarea { width: 100%; border: 1px solid #dce3ea; border-radius: 7px; padding: 9px 10px; outline: none; font-size: 11px; color: var(--ink); background: #fcfdfe; }
+    .field textarea { min-height: 80px; resize: vertical; line-height: 1.45; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #53c7c6; box-shadow: 0 0 0 3px #e6f9f8; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+    .secondary-button { border: 1px solid #dbe2e9; background: white; border-radius: 7px; padding: 9px 12px; color: #637284; font-size: 10px; font-weight: 750; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 40; background: var(--navy); color: white; border-radius: 8px; padding: 12px 15px; font-size: 11px; box-shadow: 0 12px 28px rgba(8, 21, 34, .25); transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .phase-view { display: flex; flex-direction: column; gap: 18px; }
+    .view-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 15px 18px; }
+    .toolbar-left { display: flex; align-items: center; gap: 10px; }
+    .toolbar-count { font-size: 11px; font-weight: 750; }
+    .filter-select { border: 1px solid var(--line); border-radius: 7px; background: white; color: #68788a; font-size: 10px; padding: 8px 10px; }
+    .data-card { overflow: hidden; }
+    .data-table { min-width: 740px; }
+    .data-table td { font-size: 10px; }
+    .record-code { color: var(--cyan-dark); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+    .record-name { display: block; color: var(--ink); font-size: 11px; font-weight: 700; margin-top: 3px; }
+    .muted-cell { color: var(--muted); }
+    .risk { font-weight: 800; }
+    .risk.high { color: var(--red); }
+    .risk.medium { color: #b47718; }
+    .risk.low { color: var(--green); }
+    .view-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .view-kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+    .view-kpi strong { display: block; font-size: 22px; letter-spacing: -.03em; margin-top: 8px; }
+    .view-kpi span:last-child { color: var(--muted); font-size: 10px; }
+    .supplier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .supplier-card { padding: 18px; }
+    .supplier-head { display: flex; justify-content: space-between; align-items: flex-start; }
+    .supplier-name { font-size: 13px; font-weight: 750; }
+    .supplier-site { color: var(--muted); font-size: 10px; margin-top: 4px; }
+    .supplier-score { font-size: 18px; font-weight: 800; color: var(--green); }
+    .supplier-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid var(--line); margin-top: 16px; padding-top: 13px; }
+    .supplier-meta span { display: block; color: var(--muted); font-size: 9px; }
+    .supplier-meta strong { display: block; font-size: 11px; margin-top: 4px; }
+    .evidence-row { display: flex; align-items: center; gap: 13px; border-top: 1px solid #eff2f5; padding: 14px 20px; }
+    .file-mark { width: 30px; height: 34px; border-radius: 6px; display: grid; place-items: center; background: #eef6fa; color: #3e82a3; font-size: 14px; }
+    .file-copy { min-width: 0; flex: 1; }
+    .file-copy strong { display: block; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+    .file-copy span { display: block; color: var(--muted); font-size: 9px; margin-top: 4px; }
+    @media (max-width: 720px) { .view-kpis, .supplier-grid { grid-template-columns: 1fr; } .view-toolbar { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 1050px) { .metrics { grid-template-columns: repeat(2, 1fr); } .grid-main, .lower-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .sidebar { width: 66px; padding: 18px 9px; } .brand { padding: 0 9px 20px; } .brand-name, .workspace, .nav-title, .nav-item span:not(.nav-icon), .sidebar-bottom { display: none; } .nav-item { justify-content: center; padding: 11px 8px; } .main { margin-left: 66px; width: calc(100% - 66px); } .topbar { padding: 0 17px; } .search { width: 120px; } .content { padding: 24px 17px 40px; } .page-heading { align-items: flex-start; gap: 12px; flex-direction: column; } .signal-banner { align-items: flex-start; flex-direction: column; } .form-grid, .investigation-top { grid-template-columns: 1fr; } }
+    @media (max-width: 430px) { .metrics { grid-template-columns: 1fr; } .crumbs span:not(:last-child), .crumb-sep { display: none; } .top-actions { gap: 5px; } .search { width: 105px; } h1 { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-name">QualityOS</div></div>
+      <div class="workspace"><div class="workspace-label">Workspace</div><div class="workspace-name"><span>Apex Motion · Plant 04</span><span>⌄</span></div></div>
+      <nav aria-label="Primary navigation">
+        <div class="nav-group">
+          <div class="nav-title">Operations</div>
+          <button class="nav-item active" data-view="overview"><span class="nav-icon">▦</span><span>Overview</span></button>
+          <button class="nav-item" data-view="signals"><span class="nav-icon">◒</span><span>Quality signals</span><span class="nav-badge">14</span></button>
+          <button class="nav-item" data-view="investigations"><span class="nav-icon">⌕</span><span>Investigations</span></button>
+          <button class="nav-item" data-view="actions"><span class="nav-icon">↗</span><span>Corrective actions</span><span class="nav-badge" style="background:#f5c66b">3</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">System</div>
+          <button class="nav-item" data-view="parts"><span class="nav-icon">◇</span><span>Parts & suppliers</span></button>
+          <button class="nav-item" data-view="evidence"><span class="nav-icon">▤</span><span>Evidence library</span></button>
+        </div>
+      </nav>
+      <div class="sidebar-bottom"><div class="phase-chip"><span class="phase-dot"></span> Phase 1 · Foundation</div><div class="sidebar-note">Quality intelligence for the moments where a signal becomes a controlled action.</div></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="crumbs"><span>Quality operations</span><span class="crumb-sep">/</span><strong id="crumbCurrent">Overview</strong></div><div class="top-actions"><label class="search" aria-label="Search"><span>⌕</span><input id="searchInput" type="search" placeholder="Search records" /></label><button class="icon-button" title="Notifications">♧<i class="notification-dot"></i></button><div class="avatar" title="Maya Chen">MC</div></div></header>
+      <section class="content" id="mainContent">
+        <div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">Plant 04 · Quality cockpit</div><h1>Good morning, Maya.</h1><p class="page-subtitle">A focused view of the quality signals that need an operator decision today.</p></div><button class="date-control">◷ &nbsp; Sep 08 — Sep 10, 2026 &nbsp;⌄</button></div>
+
+        <div class="metrics">
+          <article class="metric"><div class="metric-top"><span class="metric-label">Active quality signals</span><span class="metric-icon cyan">◒</span></div><div class="metric-value">14</div><div class="metric-foot"><span class="up">↑ 3</span><span>vs. last shift</span></div></article>
+          <article class="metric"><div class="metric-top"><span class="metric-label">Escalated investigations</span><span class="metric-icon red">!</span></div><div class="metric-value">2</div><div class="metric-foot"><span class="down">↑ 1</span><span>needs owner assignment</span></div></article>
+          <article class="metric"><div class="metric-top"><span class="metric-label">First-pass yield</span><span class="metric-icon green">✓</span></div><div class="metric-value">94.8%</div><div class="metric-foot"><span class="up">↑ 1.6 pts</span><span>rolling 7 days</span></div></article>
+          <article class="metric"><div class="metric-top"><span class="metric-label">Supplier actions due</span><span class="metric-icon amber">↗</span></div><div class="metric-value">3</div><div class="metric-foot"><span>1 due today</span></div></article>
+        </div>
+
+        <div class="grid-main">
+          <article class="card signal-card">
+            <div class="card-header"><div><div class="card-title">Signal watch</div><div class="card-subtitle">Signals are ranked by risk, recency, and containment status.</div></div><button class="link-button" data-nav="signals">View all signals ↗</button></div>
+            <div class="signal-banner"><div class="signal-main"><div class="signal-pulse">!</div><div><div class="signal-kicker">SPC signal · Open investigation</div><div class="signal-title">Burr height is trending above the upper control limit</div><div class="signal-meta">BRK-204 · Lot L240908-17 · Northstar Precision · Press 04</div></div></div><button class="primary-button" id="openInvestigation">Open investigation</button></div>
+            <div class="chart-wrap">
+              <div class="chart-legend"><span><i class="legend-line"></i> Burr height (mm)</span><span><i class="legend-dash"></i> Upper control limit · 0.42 mm</span><span style="margin-left:auto;color:#b85250;font-weight:700;">2 points out of control</span></div>
+              <svg class="chart" viewBox="0 0 720 190" role="img" aria-label="Burr height trend chart with two points above the upper control limit">
+                <defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#1bc4c4" stop-opacity=".18"/><stop offset="1" stop-color="#1bc4c4" stop-opacity="0"/></linearGradient></defs>
+                <line class="chart-grid" x1="45" y1="25" x2="700" y2="25"/><line class="chart-grid" x1="45" y1="70" x2="700" y2="70"/><line class="chart-grid" x1="45" y1="115" x2="700" y2="115"/><line class="chart-grid" x1="45" y1="160" x2="700" y2="160"/>
+                <line class="chart-ucl" x1="45" y1="75" x2="700" y2="75"/>
+                <text class="chart-label" x="7" y="29">0.50</text><text class="chart-label" x="7" y="74">0.42</text><text class="chart-label" x="7" y="119">0.34</text><text class="chart-label" x="7" y="164">0.26</text>
+                <path class="chart-area" d="M45 142 L95 133 L145 137 L195 126 L245 121 L295 126 L345 111 L395 115 L445 98 L495 90 L545 80 L595 64 L645 41 L695 34 L695 160 L45 160 Z"/>
+                <path class="chart-line" d="M45 142 L95 133 L145 137 L195 126 L245 121 L295 126 L345 111 L395 115 L445 98 L495 90 L545 80 L595 64 L645 41 L695 34"/>
+                <circle class="chart-point" cx="45" cy="142" r="3.5"/><circle class="chart-point" cx="95" cy="133" r="3.5"/><circle class="chart-point" cx="145" cy="137" r="3.5"/><circle class="chart-point" cx="195" cy="126" r="3.5"/><circle class="chart-point" cx="245" cy="121" r="3.5"/><circle class="chart-point" cx="295" cy="126" r="3.5"/><circle class="chart-point" cx="345" cy="111" r="3.5"/><circle class="chart-point" cx="395" cy="115" r="3.5"/><circle class="chart-point" cx="445" cy="98" r="3.5"/><circle class="chart-point" cx="495" cy="90" r="3.5"/><circle class="chart-point" cx="545" cy="80" r="3.5"/><circle class="chart-point alert" cx="595" cy="64" r="4"/><circle class="chart-point alert" cx="645" cy="41" r="4"/><circle class="chart-point alert" cx="695" cy="34" r="4"/>
+                <rect class="chart-callout" x="625" y="5" width="61" height="17" rx="4"/><text class="chart-callout-text" x="635" y="17">0.49 mm</text>
+                <text class="chart-label" x="39" y="181">08:00</text><text class="chart-label" x="194" y="181">10:00</text><text class="chart-label" x="350" y="181">12:00</text><text class="chart-label" x="505" y="181">14:00</text><text class="chart-label" x="663" y="181">16:00</text>
+              </svg>
+              <div class="chart-foot"><span><strong>Process:</strong> Deburr · Station 2</span><span><strong>n = 14</strong> samples · 8 hr window</span></div>
+            </div>
+          </article>
+
+          <article class="card investigation-card">
+            <div class="card-header"><div><div class="card-title">Investigation progress</div><div class="card-subtitle">NCR-0264 · Northstar Precision</div></div><span class="status-pill amber">In containment</span></div>
+            <div class="case-summary"><div class="case-id">NCR-0264</div><div class="case-name">BRK-204 bracket burr excursion</div><dl class="case-grid"><div><dt>Risk level</dt><dd style="color:var(--red)">High · 8.4 / 10</dd></div><div><dt>Owner</dt><dd>Maya Chen</dd></div><div><dt>Affected lot</dt><dd>L240908-17</dd></div><div><dt>Supplier</dt><dd>Northstar Precision</dd></div></dl></div>
+            <div class="timeline"><div class="timeline-step"><div class="step-dot complete"></div><div><div class="step-heading"><span class="step-name">Signal detected</span><span class="step-time">09:42</span></div><div class="step-copy">SPC rule 1 · point above UCL after a steady upward trend.</div></div></div><div class="timeline-step"><div class="step-dot complete"></div><div><div class="step-heading"><span class="step-name">Containment started</span><span class="step-time">10:05</span></div><div class="step-copy">Lot quarantined; 48 pieces held for 100% burr-height sort.</div></div></div><div class="timeline-step"><div class="step-dot current"></div><div><div class="step-heading"><span class="step-name">Investigation in progress</span><span class="step-time">Now</span></div><div class="step-copy">Confirming tool wear and reviewing supplier setup sheet.</div></div></div><div class="timeline-step"><div class="step-dot"></div><div><div class="step-heading"><span class="step-name">Corrective action</span><span class="step-time">Next</span></div><div class="step-copy">Create an owned action with due date and evidence request.</div></div></div></div>
+          </article>
+        </div>
+
+        <div class="lower-grid">
+          <article class="card"><div class="card-header"><div><div class="card-title">Defects by family</div><div class="card-subtitle">Last 7 days · 186 inspected units with a recorded defect</div></div><button class="link-button" data-nav="signals">Open defect log ↗</button></div><div class="table-wrap"><table><thead><tr><th>Defect family</th><th>Count</th><th>Share</th><th>Primary source</th><th>Trend</th></tr></thead><tbody><tr><td>Burr / sharp edge</td><td>61</td><td class="bar-cell"><div class="mini-bar"><span style="width:78%"></span></div></td><td>Northstar Precision</td><td><span class="down">↑ 28%</span></td></tr><tr><td>Hole position</td><td>43</td><td class="bar-cell"><div class="mini-bar"><span style="width:55%;background:#5db7b8"></span></div></td><td>In-house · Press 02</td><td><span style="color:var(--muted)">→ 2%</span></td></tr><tr><td>Surface finish</td><td>37</td><td class="bar-cell"><div class="mini-bar"><span style="width:47%;background:#8bc9ba"></span></div></td><td>Meridian Coatings</td><td><span class="up">↓ 11%</span></td></tr><tr><td>Thread / fastener</td><td>29</td><td class="bar-cell"><div class="mini-bar"><span style="width:37%;background:#abcfc6"></span></div></td><td>In-house · Cell 4</td><td><span style="color:var(--muted)">→ 0%</span></td></tr><tr><td>Other</td><td>16</td><td class="bar-cell"><div class="mini-bar"><span style="width:21%;background:#c4d9d7"></span></div></td><td>Mixed</td><td><span class="up">↓ 6%</span></td></tr></tbody></table></div></article>
+          <article class="card"><div class="card-header"><div><div class="card-title">Recent activity</div><div class="card-subtitle">Across Plant 04</div></div><button class="link-button" data-nav="evidence">Activity log ↗</button></div><div class="activity-list" id="activityList"><div class="activity"><div class="activity-mark blue">▣</div><div class="activity-copy"><strong>Jordan Lee</strong> uploaded a setup sheet to NCR-0264<span class="activity-time">12 min ago · Evidence</span></div></div><div class="activity"><div class="activity-mark green">✓</div><div class="activity-copy"><strong>Containment verified</strong> for lot L240908-16<span class="activity-time">38 min ago · Northstar Precision</span></div></div><div class="activity"><div class="activity-mark red">!</div><div class="activity-copy"><strong>Signal escalated</strong> from warning to action<span class="activity-time">1 hr ago · Burr height</span></div></div><div class="activity"><div class="activity-mark blue">↗</div><div class="activity-copy"><strong>CAPA-0118</strong> moved to effectiveness check<span class="activity-time">2 hrs ago · Meridian Coatings</span></div></div></div></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="investigationModal" role="dialog" aria-modal="true" aria-labelledby="investigationTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">Signal → containment → investigation</div><h2 id="investigationTitle">BRK-204 investigation</h2></div><button class="modal-close" data-close="investigationModal" aria-label="Close">×</button></div><div class="modal-body"><div class="investigation-top"><div class="detail-box"><div class="tiny-label">Signal</div><strong>Burr height above UCL · 0.49 mm</strong><p class="card-subtitle">Detected on Press 04 at 09:42 from a 14-sample SPC window.</p></div><div class="detail-box"><div class="tiny-label">Containment</div><strong>Lot L240908-17 quarantined</strong><p class="card-subtitle">48 pieces held · 100% sort in progress.</p></div></div><div class="modal-section-title">Investigation log</div><div class="modal-timeline"><div class="modal-event"><strong>09:42 · Signal auto-created</strong><p>Rule 1 fired after the process crossed the 0.42 mm upper control limit.</p></div><div class="modal-event"><strong>10:05 · Containment verified</strong><p>Jordan Lee confirmed the lot was physically segregated and blocked in receiving.</p></div><div class="modal-event"><strong>10:37 · Suspected cause added</strong><p>Tool wear on the deburr station is the leading hypothesis; supplier setup sheet requested.</p></div></div><div class="modal-actions"><button class="secondary-button" data-close="investigationModal">Close</button><button class="primary-button" id="createActionFromInvestigation">Create corrective action</button></div></div></div></div>
+
+  <div class="modal-backdrop" id="actionModal" role="dialog" aria-modal="true" aria-labelledby="actionTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">New record · Corrective action</div><h2 id="actionTitle">Create corrective action</h2></div><button class="modal-close" data-close="actionModal" aria-label="Close">×</button></div><form class="modal-body" id="actionForm"><div class="form-grid"><div class="field full"><label for="actionTitleField">Action title</label><input id="actionTitleField" required value="Replace deburr tool and verify burr-height capability" /></div><div class="field"><label for="actionOwner">Owner</label><select id="actionOwner"><option>Maya Chen · Quality</option><option>Jordan Lee · Supplier Quality</option><option>Priya Shah · Manufacturing Engineering</option></select></div><div class="field"><label for="actionDue">Due date</label><input id="actionDue" type="date" value="2026-09-15" /></div><div class="field"><label for="actionType">Action type</label><select id="actionType"><option>Corrective action</option><option>Containment action</option><option>Preventive action</option></select></div><div class="field"><label for="actionPriority">Priority</label><select id="actionPriority"><option>High</option><option>Medium</option><option>Low</option></select></div><div class="field full"><label for="actionNote">Notes / acceptance criteria</label><textarea id="actionNote">Replace tooling at Deburr Station 2, record the tool-change interval, and attach capability evidence showing burr height below 0.42 mm.</textarea></div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="actionModal">Cancel</button><button type="submit" class="primary-button">Save corrective action</button></div></form></div></div>
+  <div class="modal-backdrop" id="signalModal" role="dialog" aria-modal="true" aria-labelledby="signalRecordTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">Quality signal · Record review</div><h2 id="signalRecordTitle">Signal review</h2><p class="card-subtitle" id="signalRecordSubtitle">Review the source, risk, and next decision.</p></div><button class="modal-close" data-close="signalModal" aria-label="Close">×</button></div><div class="modal-body"><div class="investigation-top"><div class="detail-box"><div class="tiny-label">Source record</div><strong id="signalSourceValue">—</strong><p class="card-subtitle" id="signalSourceMeta">—</p></div><div class="detail-box"><div class="tiny-label">Current state</div><strong id="signalStateValue">—</strong><p class="card-subtitle">Acknowledge when the owner has reviewed the signal and selected a next step.</p></div></div><div class="modal-section-title">Operator note</div><div class="field"><label for="signalNote">Decision context</label><textarea id="signalNote" placeholder="Add a short note about the review decision..."></textarea></div><div class="modal-actions"><button class="secondary-button" data-close="signalModal">Close</button><button class="primary-button" id="acknowledgeSignal">Acknowledge signal</button></div></div></div></div>
+  <div class="modal-backdrop" id="evidenceRequestModal" role="dialog" aria-modal="true" aria-labelledby="evidenceRequestTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">New request · Evidence</div><h2 id="evidenceRequestTitle">Request supplier evidence</h2><p class="card-subtitle">Make the expected proof and response date explicit.</p></div><button class="modal-close" data-close="evidenceRequestModal" aria-label="Close">×</button></div><form class="modal-body" id="evidenceRequestForm"><div class="form-grid"><div class="field"><label for="evidenceSupplier">Supplier</label><select id="evidenceSupplier"><option>Northstar Precision</option><option>Meridian Coatings</option></select></div><div class="field"><label for="evidenceDue">Response due</label><input id="evidenceDue" type="date" value="2026-09-12" /></div><div class="field"><label for="evidenceKind">Evidence type</label><select id="evidenceKind"><option>Process setup sheet</option><option>Inspection results</option><option>Corrective action proof</option><option>Capability study</option></select></div><div class="field"><label for="evidenceLinked">Link to</label><select id="evidenceLinked"><option>NCR-0264 · BRK-204</option><option>CAPA-0118 · PNL-077</option><option>Lot L240908-17</option></select></div><div class="field full"><label for="evidenceNote">Acceptance note</label><textarea id="evidenceNote">Attach the current setup sheet and the tool-change interval. Include the latest burr-height sort or capability results.</textarea></div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="evidenceRequestModal">Cancel</button><button type="submit" class="primary-button">Create evidence request</button></div></form></div></div>
+  <div class="modal-backdrop" id="capaModal" role="dialog" aria-modal="true" aria-labelledby="capaTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">Structured follow-up · CAPA / 8D</div><h2 id="capaTitle">Create CAPA record</h2><p class="card-subtitle">Carry the investigation context into an owned systemic action.</p></div><button class="modal-close" data-close="capaModal" aria-label="Close">×</button></div><form class="modal-body" id="capaForm"><div class="form-grid"><div class="field"><label for="capaMethod">Method</label><select id="capaMethod"><option>8D</option><option>CAPA</option></select></div><div class="field"><label for="capaOwner">Record owner</label><select id="capaOwner"><option>Maya Chen · Quality</option><option>Jordan Lee · Supplier Quality</option><option>Priya Shah · Manufacturing Engineering</option></select></div><div class="field full"><label for="capaProblem">Problem statement</label><textarea id="capaProblem">BRK-204 burr height exceeded the 0.42 mm upper control limit on lot L240908-17 from Northstar Precision.</textarea></div><div class="field full"><label for="capaCause">Root cause carried forward</label><input id="capaCause" value="Deburr tool wear" /></div><div class="field"><label for="capaDue">Effectiveness check</label><input id="capaDue" type="date" value="2026-09-29" /></div><div class="field"><label for="capaScope">Scope</label><select id="capaScope"><option>Supplier + Plant 04</option><option>Plant 04 only</option><option>All BRK-204 production</option></select></div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="capaModal">Cancel</button><button type="submit" class="primary-button">Create CAPA record</button></div></form></div></div>
+  <div class="modal-backdrop" id="lotModal" role="dialog" aria-modal="true" aria-labelledby="lotTitle"><div class="modal"><div class="modal-head"><div><div class="modal-kicker">Traceability · Lot genealogy</div><h2 id="lotTitle">L240908-17</h2><p class="card-subtitle">BRK-204 motor bracket · Northstar Precision</p></div><button class="modal-close" data-close="lotModal" aria-label="Close">×</button></div><div class="modal-body"><div class="investigation-top"><div class="detail-box"><div class="tiny-label">Current state</div><strong style="color:var(--red)">Quarantined</strong><p class="card-subtitle">48 pieces held · 100% sort in progress</p></div><div class="detail-box"><div class="tiny-label">Supplier lot</div><strong>NSP-090826-4</strong><p class="card-subtitle">Received Sep 08, 2026 · 240 pieces</p></div></div><div class="modal-section-title">Quality genealogy</div><div class="genealogy"><div class="genealogy-step"><strong>Received · Sep 08, 08:12</strong><span>Northstar Precision shipment received into Plant 04 receiving.</span></div><div class="genealogy-step"><strong>Processed · Sep 08, 09:10</strong><span>BRK-204 ran through Press 04 and Deburr Station 2.</span></div><div class="genealogy-step"><strong>Signal detected · Sep 08, 09:42</strong><span>SPC rule 1 crossed the 0.42 mm burr-height upper control limit.</span></div><div class="genealogy-step"><strong>Contained · Sep 08, 10:05</strong><span>Lot blocked in receiving; sort evidence and supplier setup sheet requested.</span></div></div><div class="modal-actions"><button class="secondary-button" data-close="lotModal">Close</button><button class="primary-button" id="openLotInvestigation">Open investigation</button></div></div></div></div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const modalIds = ['investigationModal', 'actionModal', 'signalModal', 'evidenceRequestModal', 'capaModal', 'lotModal'];
+    const toast = document.getElementById('toast');
+    const mainContent = document.getElementById('mainContent');
+    const overviewMarkup = mainContent.innerHTML;
+    const viewLabels = { overview: 'Overview', signals: 'Quality signals', investigations: 'Investigations', actions: 'Corrective actions', parts: 'Parts & suppliers', evidence: 'Evidence library' };
+    let currentView = 'overview';
+    let activeSignalRow = null;
+    const defaultActions = [
+      { id: 'CA-0142', title: 'Replace deburr tool and verify burr-height capability', owner: 'Maya Chen', due: 'Sep 15, 2026', priority: 'High', status: 'Open', linked: 'NCR-0264' },
+      { id: 'CAPA-0118', title: 'Tighten coating bath temperature controls', owner: 'Priya Shah', due: 'Sep 12, 2026', priority: 'Medium', status: 'Effectiveness check', linked: 'NCR-0259' },
+      { id: 'CA-0137', title: 'Add thread-depth gauge to cell 4 start-up check', owner: 'Jordan Lee', due: 'Sep 11, 2026', priority: 'Low', status: 'In progress', linked: 'NCR-0251' }
+    ];
+    function loadActions() { try { const saved = JSON.parse(localStorage.getItem('qualityos-actions') || 'null'); return Array.isArray(saved) && saved.length ? saved : defaultActions.slice(); } catch (error) { return defaultActions.slice(); } }
+    function saveActions() { try { localStorage.setItem('qualityos-actions', JSON.stringify(actions)); } catch (error) { /* local file storage can be unavailable */ } }
+    let actions = loadActions();
+    function loadAcknowledgedSignals() { try { const saved = JSON.parse(localStorage.getItem('qualityos-acknowledged-signals') || '[]'); return new Set(Array.isArray(saved) ? saved : []); } catch (error) { return new Set(); } }
+    function saveAcknowledgedSignals() { try { localStorage.setItem('qualityos-acknowledged-signals', JSON.stringify([...acknowledgedSignals])); } catch (error) { /* local file storage can be unavailable */ } }
+    let acknowledgedSignals = loadAcknowledgedSignals();
+    let activeSignalId = null;
+    function loadLotDisposition() { try { return localStorage.getItem('qualityos-lot-disposition') || 'Hold — sort in progress'; } catch (error) { return 'Hold — sort in progress'; } }
+    let lotDisposition = loadLotDisposition();
+    function loadCauseHypothesis() { try { return JSON.parse(localStorage.getItem('qualityos-cause-hypothesis') || 'null') || { cause: 'Deburr tool wear', reasoning: 'The burr-height trend rises with the current tool interval; supplier setup sheet is still needed to confirm the change point.' }; } catch (error) { return { cause: 'Deburr tool wear', reasoning: 'The burr-height trend rises with the current tool interval; supplier setup sheet is still needed to confirm the change point.' }; } }
+    let causeHypothesis = loadCauseHypothesis();
+    function loadEvidenceRequests() { try { const saved = JSON.parse(localStorage.getItem('qualityos-evidence-requests') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
+    function saveEvidenceRequests() { try { localStorage.setItem('qualityos-evidence-requests', JSON.stringify(evidenceRequests)); } catch (error) { /* local file storage can be unavailable */ } }
+    let evidenceRequests = loadEvidenceRequests();
+    function loadCapas() { try { const saved = JSON.parse(localStorage.getItem('qualityos-capas') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
+    function saveCapas() { try { localStorage.setItem('qualityos-capas', JSON.stringify(capas)); } catch (error) { /* local file storage can be unavailable */ } }
+    let capas = loadCapas();
+    function loadActivityEvents() { try { const saved = JSON.parse(localStorage.getItem('qualityos-activity-events') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
+    function saveActivityEvents() { try { localStorage.setItem('qualityos-activity-events', JSON.stringify(activityEvents.slice(0, 8))); } catch (error) { /* local file storage can be unavailable */ } }
+    let activityEvents = loadActivityEvents();
+    function escapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
+    function recordEvent(icon, tone, title, detail) { activityEvents.unshift({ icon, tone, title, detail, time: 'Just now' }); saveActivityEvents(); if (currentView === 'overview') renderLocalActivity(); }
+    let toastTimer;
+    function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); if (!modalIds.some(x => document.getElementById(x).classList.contains('open'))) document.body.style.overflow = ''; }
+    function showToast(message) { clearTimeout(toastTimer); toast.textContent = message; toast.classList.add('show'); toastTimer = setTimeout(() => toast.classList.remove('show'), 3600); }
+    const phaseViews = {
+      signals: `<div class="phase-view"><div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">Operations · Signal inbox</div><h1>Quality signals</h1><p class="page-subtitle">Every signal has a source, a decision state, and a next accountable step.</p></div><button class="date-control">⚙ Rule settings</button></div><div class="card view-toolbar"><div class="toolbar-left"><span class="toolbar-count">14 active signals</span><span class="status-pill amber">3 need review</span></div><select class="filter-select"><option>All severities</option><option>High risk</option><option>Medium risk</option><option>Low risk</option></select></div><div class="card data-card"><div class="table-wrap"><table class="data-table"><thead><tr><th>Signal</th><th>Source</th><th>Detected</th><th>Severity</th><th>Status</th><th>Owner</th><th></th></tr></thead><tbody><tr><td><span class="record-code">SIG-0418</span><span class="record-name">Burr height above UCL</span></td><td>BRK-204 · Press 04</td><td>Today · 09:42</td><td><span class="risk high">High</span></td><td><span class="status-pill amber">In containment</span></td><td>Maya Chen</td><td><button class="link-button" data-investigation>Open ↗</button></td></tr><tr><td><span class="record-code">SIG-0417</span><span class="record-name">Hole position drift</span></td><td>BRK-118 · Press 02</td><td>Today · 08:51</td><td><span class="risk medium">Medium</span></td><td><span class="status-pill green">Acknowledged</span></td><td>Unassigned</td><td><button class="link-button">Review ↗</button></td></tr><tr><td><span class="record-code">SIG-0414</span><span class="record-name">Gloss below specification</span></td><td>PNL-077 · Meridian</td><td>Yesterday · 16:18</td><td><span class="risk medium">Medium</span></td><td><span class="status-pill amber">Investigating</span></td><td>Priya Shah</td><td><button class="link-button">Review ↗</button></td></tr><tr><td><span class="record-code">SIG-0411</span><span class="record-name">Thread depth low</span></td><td>FAST-032 · Cell 4</td><td>Yesterday · 13:06</td><td><span class="risk low">Low</span></td><td><span class="status-pill red">New</span></td><td>Unassigned</td><td><button class="link-button">Review ↗</button></td></tr></tbody></table></div></div></div>`,
+      investigations: `<div class="phase-view"><div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">Operations · Investigation queue</div><h1>Investigations</h1><p class="page-subtitle">Keep suspected nonconformances moving toward verified cause and action.</p></div><button class="primary-button" data-investigation>Open priority case</button></div><div class="view-kpis"><div class="view-kpi"><div class="tiny-label">Open investigations</div><strong>6</strong><span>2 escalated · 1 unassigned</span></div><div class="view-kpi"><div class="tiny-label">In containment</div><strong>2</strong><span>Both have held lots</span></div><div class="view-kpi"><div class="tiny-label">Median age</div><strong>2.4d</strong><span>↓ 0.6d vs. last week</span></div></div><div class="card data-card"><div class="card-header"><div><div class="card-title">Investigation queue</div><div class="card-subtitle">Ordered by risk and time since containment.</div></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Case</th><th>Part / lot</th><th>Supplier</th><th>Risk</th><th>Stage</th><th>Owner</th><th></th></tr></thead><tbody><tr><td><span class="record-code">NCR-0264</span><span class="record-name">Bracket burr excursion</span></td><td>BRK-204 · L240908-17</td><td>Northstar Precision</td><td><span class="risk high">8.4 / 10</span></td><td><span class="status-pill amber">In containment</span></td><td>Maya Chen</td><td><button class="link-button" data-investigation>Open ↗</button></td></tr><tr><td><span class="record-code">NCR-0259</span><span class="record-name">Coating gloss below spec</span></td><td>PNL-077 · L240905-04</td><td>Meridian Coatings</td><td><span class="risk medium">6.1 / 10</span></td><td><span class="status-pill amber">Root cause</span></td><td>Priya Shah</td><td><button class="link-button">Open ↗</button></td></tr><tr><td><span class="record-code">NCR-0251</span><span class="record-name">Thread-depth variation</span></td><td>FAST-032 · L240902-22</td><td>In-house · Cell 4</td><td><span class="risk low">3.7 / 10</span></td><td><span class="status-pill green">Effectiveness</span></td><td>Jordan Lee</td><td><button class="link-button">Open ↗</button></td></tr></tbody></table></div></div></div>`,
+      actions: `<div class="phase-view"><div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">System · Action register</div><h1>Corrective actions</h1><p class="page-subtitle">Make the fix visible, owned, time-bound, and verifiable.</p></div><button class="primary-button" data-open-action>+ New corrective action</button></div><div class="card data-card"><div class="view-toolbar"><div class="toolbar-left"><span class="toolbar-count">${actions.length} tracked actions</span><span class="status-pill amber">1 due today</span></div><select class="filter-select"><option>All statuses</option><option>Open</option><option>In progress</option><option>Effectiveness check</option></select></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Action</th><th>Linked case</th><th>Owner</th><th>Due</th><th>Priority</th><th>Status</th></tr></thead><tbody>${actions.map(action => `<tr><td><span class="record-code">${action.id}</span><span class="record-name">${action.title}</span></td><td>${action.linked}</td><td>${action.owner}</td><td>${action.due}</td><td><span class="risk ${action.priority.toLowerCase()}">${action.priority}</span></td><td><span class="status-pill ${action.status === 'Open' ? 'red' : action.status === 'In progress' ? 'amber' : 'green'}">${action.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>`,
+      parts: `<div class="phase-view"><div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">Master data · Traceability</div><h1>Parts & suppliers</h1><p class="page-subtitle">A compact view of the relationships behind the current quality signals.</p></div><button class="date-control">＋ Add record</button></div><div class="supplier-grid"><div class="card supplier-card"><div class="supplier-head"><div><div class="supplier-name">Northstar Precision</div><div class="supplier-site">Cleveland, OH · Machined components</div></div><div class="supplier-score">91%</div></div><div class="supplier-meta"><div><span>Open cases</span><strong style="color:var(--red)">1</strong></div><div><span>Lots this month</span><strong>18</strong></div><div><span>FPY</span><strong>96.2%</strong></div></div></div><div class="card supplier-card"><div class="supplier-head"><div><div class="supplier-name">Meridian Coatings</div><div class="supplier-site">Fort Wayne, IN · Surface finishing</div></div><div class="supplier-score">95%</div></div><div class="supplier-meta"><div><span>Open cases</span><strong>1</strong></div><div><span>Lots this month</span><strong>12</strong></div><div><span>FPY</span><strong>98.1%</strong></div></div></div></div><div class="card data-card"><div class="card-header"><div><div class="card-title">Tracked parts</div><div class="card-subtitle">Current Plant 04 quality scope.</div></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Part</th><th>Description</th><th>Revision</th><th>Supplier / process</th><th>Critical characteristics</th></tr></thead><tbody><tr><td><span class="record-code">BRK-204</span><span class="record-name">Motor bracket</span></td><td>Stamped steel support bracket</td><td>Rev C</td><td>Northstar Precision</td><td>Burr height · hole position</td></tr><tr><td><span class="record-code">PNL-077</span><span class="record-name">Control panel bezel</span></td><td>Powder-coated enclosure panel</td><td>Rev B</td><td>Meridian Coatings</td><td>Gloss · color delta</td></tr></tbody></table></div></div></div>`,
+      evidence: `<div class="phase-view"><div class="page-heading"><div><div class="eyebrow" style="color:var(--cyan-dark); margin-bottom:9px;">System · Evidence library</div><h1>Evidence library</h1><p class="page-subtitle">The files and measurements that let a quality decision stand up to review.</p></div><button class="date-control">＋ Request evidence</button></div><div class="card data-card"><div class="view-toolbar"><div class="toolbar-left"><span class="toolbar-count">18 evidence items</span><span class="status-pill green">4 verified today</span></div><select class="filter-select"><option>All evidence</option><option>Requested</option><option>Verified</option><option>Rejected</option></select></div><div><div class="evidence-row"><div class="file-mark">▤</div><div class="file-copy"><strong>Northstar_setup_sheet_rev4.pdf</strong><span>Linked to NCR-0264 · Uploaded by Jordan Lee · 12 min ago</span></div><span class="status-pill green">Verified</span></div><div class="evidence-row"><div class="file-mark">▧</div><div class="file-copy"><strong>BRK-204_burr_sort_results.csv</strong><span>Linked to L240908-17 · Uploaded by Maya Chen · 31 min ago</span></div><span class="status-pill amber">Review</span></div><div class="evidence-row"><div class="file-mark">▣</div><div class="file-copy"><strong>coating_bath_temperature_log.xlsx</strong><span>Linked to CAPA-0118 · Uploaded by Priya Shah · Yesterday</span></div><span class="status-pill green">Verified</span></div><div class="evidence-row"><div class="file-mark">▥</div><div class="file-copy"><strong>press_04_tool_change_photo.jpg</strong><span>Linked to NCR-0264 · Requested from Northstar Precision</span></div><span class="status-pill red">Requested</span></div></div></div></div>`
+    };
+    const investigationActions = document.querySelector('#investigationModal .modal-actions');
+    document.querySelector('#lotModal .modal-actions').insertAdjacentHTML('afterbegin', `<button class="secondary-button" type="button" id="exportQualityPacket">Export packet</button>`);
+    function exportQualityPacket() { const packet = { exportedAt: new Date().toISOString(), investigation: { ncr: 'NCR-0264', part: 'BRK-204', lot: 'L240908-17', supplier: 'Northstar Precision', process: 'Press 04 · Deburr Station 2' }, signal: { type: 'Burr height above upper control limit', value: '0.49 mm', upperControlLimit: '0.42 mm', detectedAt: '2026-09-08T09:42:00' }, containment: { status: 'In containment', heldPieces: 48, checklist: ['Lot blocked in receiving', '100% burr-height sort started', 'Release criteria confirmed with production'] }, disposition: lotDisposition, rootCause: causeHypothesis, correctiveActions: actions.filter(action => action.linked === 'NCR-0264'), capas: capas, evidenceRequests: evidenceRequests }; const blob = new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-NCR-0264-quality-packet.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); showToast('NCR-0264 quality packet exported.'); }
+    document.getElementById('exportQualityPacket').addEventListener('click', exportQualityPacket);
+    investigationActions.insertAdjacentHTML('beforebegin', `<div class="containment-panel" id="containmentChecklist"><div class="containment-head"><strong>Containment checklist</strong><span class="containment-progress" id="containmentProgress">2 of 3 verified</span></div><div class="progress-track"><span id="containmentProgressBar"></span></div><label class="check-row"><input type="checkbox" checked><span>Lot L240908-17 blocked in receiving</span></label><label class="check-row"><input type="checkbox" checked><span>100% burr-height sort started</span></label><label class="check-row"><input type="checkbox"><span>Release criteria confirmed with production</span></label></div>`);
+    investigationActions.insertAdjacentHTML('beforebegin', `<div class="disposition-panel"><div class="disposition-head"><strong>Lot disposition</strong><span class="status-pill amber" id="dispositionSavedState">Saved locally</span></div><div class="field"><label for="lotDisposition">Next state</label><select id="lotDisposition"><option>Hold — sort in progress</option><option>Release after verified sort</option><option>Reject lot — supplier replacement</option></select><button class="secondary-button" type="button" id="saveDisposition">Save</button></div></div>`);
+    investigationActions.insertAdjacentHTML('beforebegin', `<div class="cause-panel"><div class="containment-head"><strong>Root cause hypothesis</strong><span class="status-pill amber" id="causeSavedState">Working theory</span></div><div class="cause-fields"><div class="field"><label for="causeHypothesis">Primary hypothesis</label><select id="causeHypothesis"><option>Deburr tool wear</option><option>Supplier setup drift</option><option>Material variation</option><option>Measurement system issue</option></select></div><div class="field"><label for="causeConfidence">Confidence</label><select id="causeConfidence"><option>Medium · needs evidence</option><option>High · confirmed</option><option>Low · exploratory</option></select></div><div class="field full"><label for="causeReasoning">Evidence / reasoning</label><textarea id="causeReasoning"></textarea></div></div><div class="modal-actions" style="margin-top:12px;"><span class="card-subtitle" style="margin-right:auto;">Linked to NCR-0264</span><button class="secondary-button" type="button" id="saveCauseHypothesis">Save hypothesis</button></div></div>`);
+    investigationActions.insertAdjacentHTML('beforebegin', `<div class="capa-handoff"><div><strong>Systemic follow-up</strong><p>Carry the signal, containment, and cause hypothesis into a structured CAPA / 8D record.</p></div><button class="secondary-button" type="button" id="openCapaModal">Create CAPA / 8D</button></div>`);
+    document.getElementById('openCapaModal').addEventListener('click', () => { document.getElementById('capaCause').value = document.getElementById('causeHypothesis').value; openModal('capaModal'); });
+    document.getElementById('lotDisposition').value = lotDisposition;
+    document.getElementById('causeHypothesis').value = causeHypothesis.cause;
+    document.getElementById('causeReasoning').value = causeHypothesis.reasoning;
+    document.getElementById('saveDisposition').addEventListener('click', () => { lotDisposition = document.getElementById('lotDisposition').value; try { localStorage.setItem('qualityos-lot-disposition', lotDisposition); } catch (error) { /* local file storage can be unavailable */ } document.getElementById('dispositionSavedState').textContent = 'Saved locally'; showToast(`Lot disposition saved: ${lotDisposition}.`); });
+    document.getElementById('saveCauseHypothesis').addEventListener('click', () => { causeHypothesis = { cause: document.getElementById('causeHypothesis').value, reasoning: document.getElementById('causeReasoning').value.trim() }; try { localStorage.setItem('qualityos-cause-hypothesis', JSON.stringify(causeHypothesis)); } catch (error) { /* local file storage can be unavailable */ } document.getElementById('causeSavedState').textContent = 'Saved locally'; showToast(`Root cause hypothesis saved: ${causeHypothesis.cause}.`); });
+    function updateContainmentProgress() {
+      const checks = [...document.querySelectorAll('#containmentChecklist input')];
+      const complete = checks.filter(check => check.checked).length;
+      document.getElementById('containmentProgress').textContent = `${complete} of ${checks.length} verified`;
+      document.getElementById('containmentProgressBar').style.width = `${(complete / checks.length) * 100}%`;
+      if (complete === checks.length) showToast('Containment checklist complete. The lot remains held pending disposition.');
+    }
+    document.querySelectorAll('#containmentChecklist input').forEach(check => check.addEventListener('change', updateContainmentProgress));
+    function bindViewEvents() {
+      document.querySelectorAll('[data-nav]').forEach(btn => btn.addEventListener('click', () => setView(btn.dataset.nav, btn.textContent.replace(' ↗', ''))));
+      document.querySelectorAll('[data-investigation]').forEach(btn => btn.addEventListener('click', () => openModal('investigationModal')));
+      document.querySelectorAll('[data-open-action]').forEach(btn => btn.addEventListener('click', () => openModal('actionModal')));
+      document.querySelectorAll('.date-control').forEach(btn => { if (btn.textContent.includes('Request evidence')) btn.addEventListener('click', () => openModal('evidenceRequestModal')); });
+      document.querySelectorAll('.filter-select').forEach(select => select.addEventListener('change', () => {
+        const filter = select.value;
+        const card = select.closest('.card');
+        const rows = card ? card.querySelectorAll('tbody tr, .evidence-row') : [];
+        rows.forEach(row => {
+          const status = row.querySelector('.status-pill')?.textContent.trim() || '';
+          const risk = row.querySelector('.risk')?.textContent.trim() || '';
+          const matches = filter.startsWith('All') || status.toLowerCase().includes(filter.replace(' risk', '').toLowerCase()) || risk.toLowerCase().includes(filter.replace(' risk', '').toLowerCase());
+          row.style.display = matches ? '' : 'none';
+        });
+        showToast(filter.startsWith('All') ? 'Showing all records.' : `Filtered to ${filter.toLowerCase()}.`);
+      }));
+      document.querySelectorAll('.link-button:not([data-nav])').forEach(btn => { if (!btn.dataset.investigation) btn.addEventListener('click', () => {
+        const row = btn.closest('tr');
+        activeSignalRow = row;
+        activeSignalId = row?.querySelector('.record-code')?.textContent.trim() || null;
+        const cells = row ? [...row.querySelectorAll('td')].map(cell => cell.textContent.trim()) : [];
+        const title = row?.querySelector('.record-name')?.textContent.trim() || 'Record review';
+        document.getElementById('signalRecordTitle').textContent = title;
+        document.getElementById('signalRecordSubtitle').textContent = cells[0] ? `${cells[0]} · ${cells[1] || 'Quality record'}` : 'Review the source, risk, and next decision.';
+        document.getElementById('signalSourceValue').textContent = cells[1] || 'Plant 04 quality record';
+        document.getElementById('signalSourceMeta').textContent = cells.slice(2, 4).join(' · ') || 'No additional source metadata';
+        document.getElementById('signalStateValue').textContent = cells[4] || 'Needs review';
+        document.getElementById('signalNote').value = '';
+        openModal('signalModal');
+      }); });
+      const overviewTrigger = document.getElementById('openInvestigation');
+      if (overviewTrigger) overviewTrigger.addEventListener('click', () => openModal('investigationModal'));
+    }
+    function setView(view, label) {
+      currentView = view;
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+      document.getElementById('crumbCurrent').textContent = label || viewLabels[view];
+      mainContent.innerHTML = view === 'overview' ? overviewMarkup : (phaseViews[view] || phaseViews.signals);
+      bindViewEvents();
+      if (view === 'signals') restoreAcknowledgedSignals();
+      if (view === 'evidence') renderEvidenceRequests();
+      if (view === 'actions') renderCapaRecords();
+      if (view === 'parts') renderPartsTraceability();
+      if (view === 'overview') renderLocalActivity();
+    }
+    function restoreAcknowledgedSignals() { mainContent.querySelectorAll('tbody tr').forEach(row => { const id = row.querySelector('.record-code')?.textContent.trim(); const state = row.querySelector('.status-pill'); if (id && acknowledgedSignals.has(id) && state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } }); }
+    function renderEvidenceRequests() { if (!evidenceRequests.length) return; const card = mainContent.querySelector('.data-card'); if (!card) return; let feed = document.getElementById('evidenceRequestFeed'); if (!feed) { feed = document.createElement('div'); feed.id = 'evidenceRequestFeed'; card.appendChild(feed); } feed.innerHTML = `<div class="card-header"><div><div class="card-title">Recent requests</div><div class="card-subtitle">Browser-local requests created from this workspace.</div></div></div>${evidenceRequests.map(request => `<div class="evidence-row"><div class="file-mark">↗</div><div class="file-copy"><strong>${request.kind} · ${request.supplier}</strong><span>${request.linked} · Due ${request.due} · ${request.note}</span></div><span class="status-pill red">Requested</span></div>`).join('')}`; }
+    function renderCapaRecords() { if (!capas.length) return; const root = mainContent.querySelector('.phase-view'); if (!root) return; const card = document.createElement('div'); card.className = 'card data-card'; card.innerHTML = `<div class="card-header"><div><div class="card-title">CAPA / 8D register</div><div class="card-subtitle">Structured follow-up records created from investigations.</div></div><span class="status-pill amber">${capas.length} open</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Record</th><th>Method</th><th>Owner</th><th>Scope</th><th>Effectiveness check</th><th>Status</th></tr></thead><tbody>${capas.map(capa => `<tr><td><span class="record-code">${capa.id}</span><span class="record-name">BRK-204 burr excursion</span></td><td>${capa.method}</td><td>${capa.owner.split(' · ')[0]}</td><td>${capa.scope}</td><td>${capa.due || 'Not set'}</td><td><span class="status-pill amber">${capa.status}</span></td></tr>`).join('')}</tbody></table></div>`; root.appendChild(card); }
+    function renderPartsTraceability() { const heading = mainContent.querySelector('.page-heading'); if (!heading || heading.querySelector('#traceLotButton')) return; const button = document.createElement('button'); button.id = 'traceLotButton'; button.className = 'primary-button'; button.type = 'button'; button.textContent = 'Trace active lot'; button.addEventListener('click', () => openModal('lotModal')); const current = heading.querySelector('.date-control'); if (current) { const group = document.createElement('div'); group.style.display = 'flex'; group.style.gap = '8px'; group.append(button, current); heading.appendChild(group); } else heading.appendChild(button); }
+    function renderLocalActivity() { const list = document.getElementById('activityList'); if (!list) return; list.querySelectorAll('[data-local-event]').forEach(item => item.remove()); activityEvents.slice(0, 4).reverse().forEach(event => { const item = document.createElement('div'); item.dataset.localEvent = 'true'; item.className = 'activity'; item.innerHTML = `<div class="activity-mark ${escapeHtml(event.tone)}">${escapeHtml(event.icon)}</div><div class="activity-copy"><strong>${escapeHtml(event.title)}</strong> ${escapeHtml(event.detail)}<span class="activity-time">${escapeHtml(event.time)} · Local activity</span></div>`; list.prepend(item); }); }
+    document.getElementById('createActionFromInvestigation').addEventListener('click', () => { closeModal('investigationModal'); openModal('actionModal'); });
+    document.getElementById('openLotInvestigation').addEventListener('click', () => { closeModal('lotModal'); openModal('investigationModal'); });
+    document.getElementById('acknowledgeSignal').addEventListener('click', () => { const title = document.getElementById('signalRecordTitle').textContent; if (activeSignalRow) { const state = activeSignalRow.querySelector('.status-pill'); if (state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } } if (activeSignalId) { acknowledgedSignals.add(activeSignalId); saveAcknowledgedSignals(); } closeModal('signalModal'); showToast(`${title} acknowledged and assigned for follow-up.`); });
+    document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(backdrop.id); }));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') modalIds.forEach(closeModal); });
+    document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => setView(btn.dataset.view, btn.querySelector('span:nth-child(2)').textContent)));
+    document.getElementById('capaForm').addEventListener('submit', e => { e.preventDefault(); const id = `CAPA-${String(119 + capas.length).padStart(4, '0')}`; const record = { id, method: document.getElementById('capaMethod').value, owner: document.getElementById('capaOwner').value, problem: document.getElementById('capaProblem').value.trim(), cause: document.getElementById('capaCause').value.trim(), due: document.getElementById('capaDue').value, scope: document.getElementById('capaScope').value, status: 'Open' }; capas.unshift(record); saveCapas(); closeModal('capaModal'); showToast(`${id} created and linked to NCR-0264.`); });
+    document.getElementById('evidenceRequestForm').addEventListener('submit', e => { e.preventDefault(); const date = document.getElementById('evidenceDue').value; const prettyDate = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'; const request = { supplier: document.getElementById('evidenceSupplier').value, due: prettyDate, kind: document.getElementById('evidenceKind').value, linked: document.getElementById('evidenceLinked').value, note: document.getElementById('evidenceNote').value.trim() }; evidenceRequests.unshift(request); saveEvidenceRequests(); closeModal('evidenceRequestModal'); showToast(`Evidence request sent to ${request.supplier}.`); if (currentView === 'evidence') { setView('evidence', viewLabels.evidence); } });
+    document.getElementById('actionForm').addEventListener('submit', e => { e.preventDefault(); const title = document.getElementById('actionTitleField').value.trim(); const owner = document.getElementById('actionOwner').value.split(' · ')[0]; const date = document.getElementById('actionDue').value; const prettyDate = date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'; const id = `CA-${String(142 + actions.length).padStart(4, '0')}`; actions.unshift({ id, title, owner, due: prettyDate, priority: document.getElementById('actionPriority').value, status: 'Open', linked: 'NCR-0264' }); closeModal('actionModal'); showToast(`${id} created and assigned to ${owner}.`); const activityList = document.getElementById('activityList'); if (activityList) { const item = document.createElement('div'); item.className = 'activity'; item.innerHTML = `<div class="activity-mark green">↗</div><div class="activity-copy"><strong>${id} created</strong> and linked to NCR-0264<span class="activity-time">Just now · Corrective action</span></div>`; activityList.prepend(item); } if (currentView === 'actions') setView('actions', viewLabels.actions); });
+    document.getElementById('actionForm').addEventListener('submit', () => setTimeout(saveActions, 0));
+    document.getElementById('acknowledgeSignal').addEventListener('click', () => setTimeout(() => recordEvent('✓', 'green', document.getElementById('signalRecordTitle').textContent, 'acknowledged for follow-up'), 0));
+    document.getElementById('saveDisposition').addEventListener('click', () => setTimeout(() => recordEvent('◈', 'amber', 'Lot disposition updated', lotDisposition), 0));
+    document.getElementById('saveCauseHypothesis').addEventListener('click', () => setTimeout(() => recordEvent('⌕', 'blue', 'Root cause hypothesis saved', causeHypothesis.cause), 0));
+    document.getElementById('exportQualityPacket').addEventListener('click', () => recordEvent('↓', 'blue', 'NCR-0264 quality packet exported', 'handoff file generated'));
+    document.getElementById('capaForm').addEventListener('submit', () => setTimeout(() => recordEvent('↗', 'blue', 'CAPA / 8D record created', capas[0]?.id || 'linked to NCR-0264'), 0));
+    document.getElementById('evidenceRequestForm').addEventListener('submit', () => setTimeout(() => recordEvent('▣', 'blue', 'Evidence request sent', evidenceRequests[0]?.supplier || 'supplier follow-up'), 0));
+    document.getElementById('actionForm').addEventListener('submit', () => setTimeout(() => recordEvent('↗', 'green', 'Corrective action created', actions[0]?.id || 'linked to NCR-0264'), 0));
+    document.getElementById('searchInput').addEventListener('input', e => {
+      const query = e.target.value.trim().toLowerCase();
+      const targets = mainContent.querySelectorAll('tbody tr, .evidence-row, .supplier-card, .activity');
+      targets.forEach(target => { target.style.display = !query || target.textContent.toLowerCase().includes(query) ? '' : 'none'; });
+      if (query.length > 2) showToast(`Searching ${viewLabels[currentView].toLowerCase()} for “${e.target.value}”.`);
+    });
+    bindViewEvents();
+    renderLocalActivity();
+  </script>
+</body>
+</html>
