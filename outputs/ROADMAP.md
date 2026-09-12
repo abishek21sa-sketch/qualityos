@@ -17,7 +17,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 - Lot genealogy and supplier scorecards.
 - Inspection entry and defect-code management (initial browser-local inspection slice implemented).
 - Evidence upload, preview, and verification workflow.
-- Configurable containment templates.
+- Configurable containment templates (initial browser-local extension workflow implemented).
 
 ## Phase 3 — Quality intelligence
 

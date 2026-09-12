@@ -201,6 +201,11 @@
     .why-row label { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
     .why-row input { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; background: #fff; color: var(--ink); font: inherit; font-size: 10px; outline: none; }
     .why-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(27,196,196,.12); }
+    .containment-template-tools { margin: 0 0 20px; border: 1px dashed #c8dddd; border-radius: 9px; background: #fbfefe; padding: 12px 13px; }
+    .containment-template-tools p { color: var(--muted); font-size: 10px; line-height: 1.45; margin-top: 4px; }
+    .template-input-row { display: flex; gap: 8px; margin-top: 10px; }
+    .template-input-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; background: #fff; color: var(--ink); font: inherit; font-size: 10px; }
+    .template-input-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(27,196,196,.12); outline: none; }
     .capa-handoff { margin: 0 0 20px; border: 1px solid #dce5f5; border-radius: 9px; background: #f6f9ff; padding: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .capa-handoff strong { display: block; font-size: 11px; }
     .capa-handoff p { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 4px; }
@@ -578,6 +583,14 @@
     fiveWhys.forEach((answer, index) => { const input = document.getElementById('why' + (index + 1)); if (input) input.value = answer; });
     document.getElementById('saveFiveWhys')?.addEventListener('click', () => { fiveWhys = Array.from({ length: 5 }, (_, index) => document.getElementById('why' + (index + 1))?.value.trim() || 'Not yet answered'); causeHypothesis.fiveWhys = fiveWhys; saveFiveWhys(); document.getElementById('fiveWhysSavedState').textContent = 'Saved locally'; recordEvent('⌕', 'blue', '5-Why cause chain saved', 'NCR-0264 cause analysis'); showToast('5-Why cause chain saved for NCR-0264.'); });
     document.getElementById('saveCauseHypothesis').addEventListener('click', () => { causeHypothesis.fiveWhys = fiveWhys; });
+    function loadCustomContainmentItems() { try { const saved = JSON.parse(localStorage.getItem('qualityos-containment-template-items') || '[]'); return Array.isArray(saved) ? saved.filter(item => item && typeof item.item === 'string').map(item => ({ item: item.item, verified: Boolean(item.verified) })) : []; } catch (error) { return []; } }
+    function saveCustomContainmentItems() { try { localStorage.setItem('qualityos-containment-template-items', JSON.stringify(customContainmentItems)); } catch (error) { /* local file storage can be unavailable */ } }
+    let customContainmentItems = loadCustomContainmentItems();
+    const containmentChecklistRoot = document.getElementById('containmentChecklist');
+    if (containmentChecklistRoot && !document.getElementById('customContainmentList')) { containmentChecklistRoot.insertAdjacentHTML('beforeend', '<div id="customContainmentList"></div>'); const tools = document.createElement('div'); tools.id = 'containmentTemplateTools'; tools.className = 'containment-template-tools'; tools.innerHTML = '<strong>Add a containment check</strong><p>Extend this investigation with a local step without changing the standard template.</p><div class="template-input-row"><input id="newContainmentItem" type="text" maxlength="120" placeholder="e.g. Verify gauge calibration status" /><button class="secondary-button" type="button" id="addContainmentItem">Add check</button></div>'; containmentChecklistRoot.insertAdjacentElement('afterend', tools); }
+    function renderCustomContainmentItems() { const list = document.getElementById('customContainmentList'); if (!list) return; list.innerHTML = customContainmentItems.map((entry, index) => '<label class="check-row"><input type="checkbox" data-custom-containment="' + index + '"' + (entry.verified ? ' checked' : '') + '><span>' + escapeHtml(entry.item) + '</span></label>').join(''); list.querySelectorAll('[data-custom-containment]').forEach(check => check.addEventListener('change', () => { const entry = customContainmentItems[Number(check.dataset.customContainment)]; if (!entry) return; entry.verified = check.checked; saveCustomContainmentItems(); updateContainmentProgress(); recordEvent('☑', check.checked ? 'green' : 'amber', 'Custom containment check updated', entry.item); })); updateContainmentProgress(); }
+    renderCustomContainmentItems();
+    document.getElementById('addContainmentItem')?.addEventListener('click', () => { const input = document.getElementById('newContainmentItem'); const value = input?.value.trim() || ''; if (!value) { showToast('Enter a containment check before adding it.'); return; } customContainmentItems.push({ item: value, verified: false }); saveCustomContainmentItems(); if (input) input.value = ''; renderCustomContainmentItems(); recordEvent('＋', 'blue', 'Custom containment check added', value); showToast('Containment check added to NCR-0264.'); });
   </script>
 </body>
 </html>
