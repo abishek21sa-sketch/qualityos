@@ -209,6 +209,9 @@
     .capa-handoff { margin: 0 0 20px; border: 1px solid #dce5f5; border-radius: 9px; background: #f6f9ff; padding: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .capa-handoff strong { display: block; font-size: 11px; }
     .capa-handoff p { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 4px; }
+    .capa-cause-summary { margin-top: 10px; padding: 10px 11px; border: 1px solid #dce5f5; border-radius: 7px; background: #f8faff; }
+    .capa-cause-summary .why-summary-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; padding: 4px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .capa-cause-summary .why-summary-row strong { color: var(--cyan-dark); font-size: 9px; }
     .genealogy { display: flex; flex-direction: column; gap: 0; border-left: 1px solid #d9e6e8; margin: 5px 0 4px 7px; padding-left: 18px; }
     .genealogy-step { position: relative; padding: 0 0 17px; }
     .genealogy-step:last-child { padding-bottom: 0; }
@@ -591,6 +594,13 @@
     function renderCustomContainmentItems() { const list = document.getElementById('customContainmentList'); if (!list) return; list.innerHTML = customContainmentItems.map((entry, index) => '<label class="check-row"><input type="checkbox" data-custom-containment="' + index + '"' + (entry.verified ? ' checked' : '') + '><span>' + escapeHtml(entry.item) + '</span></label>').join(''); list.querySelectorAll('[data-custom-containment]').forEach(check => check.addEventListener('change', () => { const entry = customContainmentItems[Number(check.dataset.customContainment)]; if (!entry) return; entry.verified = check.checked; saveCustomContainmentItems(); updateContainmentProgress(); recordEvent('☑', check.checked ? 'green' : 'amber', 'Custom containment check updated', entry.item); })); updateContainmentProgress(); }
     renderCustomContainmentItems();
     document.getElementById('addContainmentItem')?.addEventListener('click', () => { const input = document.getElementById('newContainmentItem'); const value = input?.value.trim() || ''; if (!value) { showToast('Enter a containment check before adding it.'); return; } customContainmentItems.push({ item: value, verified: false }); saveCustomContainmentItems(); if (input) input.value = ''; renderCustomContainmentItems(); recordEvent('＋', 'blue', 'Custom containment check added', value); showToast('Containment check added to NCR-0264.'); });
+    const capaCauseField = document.getElementById('capaCause');
+    if (capaCauseField && !document.getElementById('capaCauseChainSummary')) { const summary = document.createElement('div'); summary.id = 'capaCauseChainSummary'; summary.className = 'field full capa-cause-summary'; summary.innerHTML = '<div class="tiny-label">5-Why chain carried forward</div><div id="capaCauseChainRows"></div>'; capaCauseField.closest('.field')?.insertAdjacentElement('afterend', summary); }
+    function renderCapaCauseSummary() { const rows = document.getElementById('capaCauseChainRows'); if (!rows) return; rows.innerHTML = fiveWhys.map((answer, index) => '<div class="why-summary-row"><strong>Why ' + (index + 1) + '</strong><span>' + escapeHtml(answer || 'Not yet answered') + '</span></div>').join(''); }
+    renderCapaCauseSummary();
+    document.getElementById('openCapaModal')?.addEventListener('click', renderCapaCauseSummary);
+    document.getElementById('saveFiveWhys')?.addEventListener('click', renderCapaCauseSummary);
+    document.getElementById('capaForm').addEventListener('submit', () => { if (!capas[0]) return; capas[0].fiveWhys = fiveWhys.slice(); saveCapas(); });
   </script>
 </body>
 </html>
