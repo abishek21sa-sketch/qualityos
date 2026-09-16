@@ -23,7 +23,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 
 - Full SPC rule library with configurable limits and rational subgrouping (initial burr-height UCL setting implemented).
 - Initial browser-local 5-Why cause chain and CAPA status workflow are implemented; expand into fishbone and a full 8D/CAPA workspace.
-- Risk-based prioritization and recurrence detection (initial signal priority scores and persisted queue sorting implemented).
+- Risk-based prioritization and recurrence detection (initial signal priority and 30-day recurrence indicators with persisted queue sorting implemented).
 - Effectiveness checks with before/after process capability (verified-evidence closure gates implemented for CAPA and corrective actions).
 - Cross-plant benchmarking and supplier collaboration.
 
