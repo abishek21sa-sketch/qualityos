@@ -616,6 +616,8 @@
     document.addEventListener('click', event => { const target = event.target.closest('[data-view="evidence"], [data-nav="evidence"], [data-verify-evidence]'); if (target) setTimeout(updateEvidenceSummary, 0); });
     document.addEventListener('submit', event => { if (event.target.id === 'evidenceRequestForm') setTimeout(updateEvidenceSummary, 0); });
     updateEvidenceSummary();
+    function hasVerifiedActionEvidence(action) { return evidenceRequests.some(request => { const linked = String(request.linked || ''); const lotFallback = action.linked === 'NCR-0264' && linked.includes('L240908-17'); return request.status === 'Verified' && (linked.includes(action.linked) || lotFallback); }); }
+    document.addEventListener('click', event => { const button = event.target.closest('[data-advance-action]'); if (!button) return; const action = actions.find(item => item.id === button.dataset.advanceAction); if (!action || nextActionStatus(action.status) !== 'Closed' || hasVerifiedActionEvidence(action)) return; event.preventDefault(); event.stopImmediatePropagation(); showToast('Verify linked evidence before closing this corrective action.'); }, true);
   </script>
 </body>
 </html>

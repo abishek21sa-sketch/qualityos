@@ -15,6 +15,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Configurable browser-local containment checks that participate in completion progress, release gating, and packet export.
 - CAPA records with a browser-local lifecycle: Open, In progress, Effectiveness check, and Closed.
 - CAPA closure guard requiring verified evidence linked to NCR-0264 or lot L240908-17.
+- Corrective-action closure guard requiring verified evidence linked to the action record.
 - Signal counts and review totals update from acknowledged browser-local decisions.
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Browser-local audit trail for key operator decisions and handoffs.
