@@ -607,6 +607,9 @@
     document.addEventListener('click', event => { if (event.target.closest('[data-view="actions"]')) setTimeout(decorateCapaStatusControls, 0); }, true);
     document.addEventListener('submit', event => { if (event.target.id === 'capaForm') setTimeout(decorateCapaStatusControls, 0); });
     decorateCapaStatusControls();
+    function updateSignalCounts() { const activeCount = Math.max(0, 14 - acknowledgedSignals.size); const reviewCount = Math.max(0, 3 - acknowledgedSignals.size); const navBadge = document.querySelector('.nav-item[data-view="signals"] .nav-badge'); if (navBadge) navBadge.textContent = String(activeCount); const overviewMetric = mainContent.querySelector('.metrics .metric:first-child .metric-value'); if (overviewMetric) overviewMetric.textContent = String(activeCount); const toolbarCount = mainContent.querySelector('.view-toolbar .toolbar-count'); if (toolbarCount && currentView === 'signals') toolbarCount.textContent = activeCount + ' active signals'; const reviewPill = mainContent.querySelector('.view-toolbar .toolbar-left .status-pill'); if (reviewPill && currentView === 'signals') reviewPill.textContent = reviewCount + ' need review'; }
+    document.addEventListener('click', event => { const target = event.target.closest('[data-view="signals"], [data-view="overview"], [data-nav="signals"], [data-nav="overview"], #acknowledgeSignal'); if (target) setTimeout(updateSignalCounts, 0); });
+    updateSignalCounts();
   </script>
 </body>
 </html>
