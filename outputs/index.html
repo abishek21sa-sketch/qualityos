@@ -212,6 +212,7 @@
     .capa-cause-summary { margin-top: 10px; padding: 10px 11px; border: 1px solid #dce5f5; border-radius: 7px; background: #f8faff; }
     .capa-cause-summary .why-summary-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; padding: 4px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
     .capa-cause-summary .why-summary-row strong { color: var(--cyan-dark); font-size: 9px; }
+    .rule-settings-note { color: var(--muted); font-size: 10px; line-height: 1.45; margin-top: 10px; }
     .evidence-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-left: auto; }
     .evidence-actions .link-button { font-size: 9px; }
     .genealogy { display: flex; flex-direction: column; gap: 0; border-left: 1px solid #d9e6e8; margin: 5px 0 4px 7px; padding-left: 18px; }
@@ -442,7 +443,7 @@
     };
     const investigationActions = document.querySelector('#investigationModal .modal-actions');
     document.querySelector('#lotModal .modal-actions').insertAdjacentHTML('afterbegin', `<button class="secondary-button" type="button" id="exportQualityPacket">Export packet</button>`);
-    function exportQualityPacket() { const packet = { exportedAt: new Date().toISOString(), investigation: { ncr: 'NCR-0264', part: 'BRK-204', lot: 'L240908-17', supplier: 'Northstar Precision', process: 'Press 04 · Deburr Station 2' }, signal: { type: 'Burr height above upper control limit', value: '0.49 mm', upperControlLimit: '0.42 mm', detectedAt: '2026-09-08T09:42:00' }, containment: { status: 'In containment', heldPieces: 48, checklist: getContainmentChecklist() }, disposition: lotDisposition, rootCause: causeHypothesis, correctiveActions: actions.filter(action => action.linked === 'NCR-0264'), capas: capas, evidenceRequests: evidenceRequests, inspectionRecords: inspectionRecords.filter(record => record.lot === 'L240908-17'), defectCodes: defectCodes }; const blob = new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-NCR-0264-quality-packet.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); showToast('NCR-0264 quality packet exported.'); }
+    function exportQualityPacket() { const packet = { exportedAt: new Date().toISOString(), investigation: { ncr: 'NCR-0264', part: 'BRK-204', lot: 'L240908-17', supplier: 'Northstar Precision', process: 'Press 04 · Deburr Station 2' }, signal: { type: 'Burr height above upper control limit', value: '0.49 mm', upperControlLimit: `${inspectionControlLimits['Burr height'].limit.toFixed(2)} mm`, detectedAt: '2026-09-08T09:42:00' }, containment: { status: 'In containment', heldPieces: 48, checklist: getContainmentChecklist() }, disposition: lotDisposition, rootCause: causeHypothesis, correctiveActions: actions.filter(action => action.linked === 'NCR-0264'), capas: capas, evidenceRequests: evidenceRequests, inspectionRecords: inspectionRecords.filter(record => record.lot === 'L240908-17'), defectCodes: defectCodes }; const blob = new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-NCR-0264-quality-packet.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); showToast('NCR-0264 quality packet exported.'); }
     document.getElementById('exportQualityPacket').addEventListener('click', exportQualityPacket);
     investigationActions.insertAdjacentHTML('beforebegin', `<div class="containment-panel" id="containmentChecklist"><div class="containment-head"><strong>Containment checklist</strong><span class="containment-progress" id="containmentProgress">2 of 3 verified</span></div><div class="progress-track"><span id="containmentProgressBar"></span></div><label class="check-row"><input type="checkbox" checked><span>Lot L240908-17 blocked in receiving</span></label><label class="check-row"><input type="checkbox" checked><span>100% burr-height sort started</span></label><label class="check-row"><input type="checkbox"><span>Release criteria confirmed with production</span></label></div>`);
     investigationActions.insertAdjacentHTML('beforebegin', `<div class="disposition-panel"><div class="disposition-head"><strong>Lot disposition</strong><span class="status-pill amber" id="dispositionSavedState">Saved locally</span></div><div class="field"><label for="lotDisposition">Next state</label><select id="lotDisposition"><option>Hold — sort in progress</option><option>Release after verified sort</option><option>Reject lot — supplier replacement</option></select><button class="secondary-button" type="button" id="saveDisposition">Save</button></div></div>`);
@@ -514,7 +515,7 @@
       if (view === 'evidence') { renderEvidenceRequests(); bindEvidenceVerification(); restoreEvidenceFilter(); }
       if (view === 'actions') { renderCapaRecords(); bindActionStatusControls(); }
       if (view === 'parts') { renderPartsTraceability(); renderInspectionRecords(); setupInspectionControls(); renderDefectCodeCatalog(); renderSupplierScorecards(); }
-      if (view === 'overview') renderLocalActivity();
+      if (view === 'overview') { renderLocalActivity(); if (typeof refreshSpcRuleDisplay === 'function') refreshSpcRuleDisplay(); }
     }
     function restoreAcknowledgedSignals() { mainContent.querySelectorAll('tbody tr').forEach(row => { const id = row.querySelector('.record-code')?.textContent.trim(); const state = row.querySelector('.status-pill'); if (id && acknowledgedSignals.has(id) && state) { state.textContent = 'Acknowledged'; state.className = 'status-pill green'; } }); }
     function restoreSignalFilter() { const select = mainContent.querySelector('.filter-select'); if (!select || select.querySelector('option')?.textContent !== 'All severities') return; if ([...select.options].some(option => option.value === signalFilter)) select.value = signalFilter; const filter = select.value; const query = filter.replace(' risk', '').toLowerCase(); mainContent.querySelectorAll('tbody tr').forEach(row => { const status = row.querySelector('.status-pill')?.textContent.trim().toLowerCase() || ''; const risk = row.querySelector('.risk')?.textContent.trim().toLowerCase() || ''; row.style.display = filter.startsWith('All') || status.includes(query) || risk.includes(query) ? '' : 'none'; }); }
@@ -624,6 +625,39 @@
     document.addEventListener('click', event => { const target = event.target.closest('[data-view="evidence"], [data-nav="evidence"], [data-verify-evidence], [data-review-evidence], [data-reject-evidence]'); if (target) setTimeout(decorateEvidenceActions, 0); });
     document.addEventListener('submit', event => { if (event.target.id === 'evidenceRequestForm') setTimeout(decorateEvidenceActions, 0); });
     decorateEvidenceActions();
+    function loadSpcRules() { try { const saved = JSON.parse(localStorage.getItem('qualityos-spc-rules') || 'null'); const value = Number(saved?.burrHeightUcl); return Number.isFinite(value) && value >= 0.1 && value <= 1 ? { burrHeightUcl: value } : { burrHeightUcl: 0.42 }; } catch (error) { return { burrHeightUcl: 0.42 }; } }
+    function saveSpcRules() { try { localStorage.setItem('qualityos-spc-rules', JSON.stringify(spcRules)); } catch (error) { /* local file storage can be unavailable */ } }
+    let spcRules = loadSpcRules();
+    inspectionControlLimits['Burr height'].limit = spcRules.burrHeightUcl;
+    const ruleSettingsModal = document.createElement('div');
+    ruleSettingsModal.id = 'spcSettingsModal';
+    ruleSettingsModal.className = 'modal-backdrop';
+    ruleSettingsModal.setAttribute('role', 'dialog');
+    ruleSettingsModal.setAttribute('aria-modal', 'true');
+    ruleSettingsModal.setAttribute('aria-labelledby', 'spcSettingsTitle');
+    ruleSettingsModal.innerHTML = '<div class="modal"><div class="modal-head"><div><div class="modal-kicker">Configuration · SPC rule</div><h2 id="spcSettingsTitle">Rule settings</h2><p class="card-subtitle">Tune the local burr-height threshold used during review.</p></div><button class="modal-close" data-close="spcSettingsModal" aria-label="Close">×</button></div><form class="modal-body" id="spcSettingsForm"><div class="field"><label for="spcBurrUcl">Burr-height upper control limit (mm)</label><input id="spcBurrUcl" type="number" min="0.100" max="1.000" step="0.001" required /></div><p class="rule-settings-note">This browser-local limit is shared with inspection warnings, the SPC context panel, and quality-packet exports.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close="spcSettingsModal">Cancel</button><button type="submit" class="primary-button">Save rule</button></div></form></div></div>';
+    document.body.appendChild(ruleSettingsModal);
+    modalIds.push('spcSettingsModal');
+    ruleSettingsModal.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.close)));
+    ruleSettingsModal.addEventListener('click', event => { if (event.target === ruleSettingsModal) closeModal(ruleSettingsModal.id); });
+    function refreshSpcRuleDisplay() {
+      const limit = inspectionControlLimits['Burr height'].limit;
+      const formattedLimit = `${limit.toFixed(2)} mm`;
+      document.querySelectorAll('.chart-legend span').forEach(span => { if (span.textContent.includes('Upper control limit')) span.innerHTML = `<i class="legend-dash"></i> Upper control limit · ${formattedLimit}`; });
+      const chartLine = document.querySelector('.chart-ucl');
+      if (chartLine) { const y = Math.max(28, Math.min(160, 310.25 - (562.5 * limit))); chartLine.setAttribute('y1', y.toFixed(1)); chartLine.setAttribute('y2', y.toFixed(1)); }
+      const chartLabels = document.querySelectorAll('.chart-label');
+      if (chartLabels[1]) chartLabels[1].textContent = limit.toFixed(2);
+      const ruleModal = document.getElementById('spcRuleModal');
+      if (ruleModal) ruleModal.querySelectorAll('.detail-box').forEach(box => { const label = box.querySelector('.tiny-label')?.textContent.trim(); const value = box.querySelector('strong'); if (label === 'Upper control limit' && value) value.textContent = formattedLimit; if (label === 'Excursion' && value) value.textContent = `+${Math.max(0, 0.49 - limit).toFixed(2)} mm`; });
+      document.querySelectorAll('#investigationModal .modal-event p, #lotModal .genealogy-step span').forEach(node => { node.textContent = node.textContent.replace(/crossed the [0-9.]+ mm/, `crossed the ${formattedLimit}`); node.textContent = node.textContent.replace(/the [0-9.]+ mm burr-height upper control limit/, `the ${formattedLimit} burr-height upper control limit`); node.textContent = node.textContent.replace(/the [0-9.]+ mm upper control limit/, `the ${formattedLimit} upper control limit`); });
+      const actionNote = document.getElementById('actionNote'); if (actionNote) actionNote.value = actionNote.value.replace(/burr height below [0-9.]+ mm/, `burr height below ${formattedLimit}`);
+      const capaProblem = document.getElementById('capaProblem'); if (capaProblem) capaProblem.value = capaProblem.value.replace(/exceeded the [0-9.]+ mm upper control limit/, `exceeded the ${formattedLimit} upper control limit`);
+    }
+    function openSpcSettings() { const input = document.getElementById('spcBurrUcl'); if (input) input.value = inspectionControlLimits['Burr height'].limit.toFixed(3); openModal('spcSettingsModal'); }
+    document.addEventListener('click', event => { const button = event.target.closest('.date-control'); if (button && button.textContent.includes('Rule settings')) { event.preventDefault(); openSpcSettings(); } });
+    document.getElementById('spcSettingsForm').addEventListener('submit', event => { event.preventDefault(); const input = document.getElementById('spcBurrUcl'); const value = Number(input.value); if (!Number.isFinite(value) || value < 0.1 || value > 1) { showToast('Enter an SPC limit between 0.100 and 1.000 mm.'); return; } spcRules.burrHeightUcl = Number(value.toFixed(3)); inspectionControlLimits['Burr height'].limit = spcRules.burrHeightUcl; saveSpcRules(); refreshSpcRuleDisplay(); closeModal('spcSettingsModal'); recordEvent('⚙', 'blue', 'SPC rule settings updated', `Burr-height UCL · ${spcRules.burrHeightUcl.toFixed(2)} mm`); showToast(`Burr-height UCL saved at ${spcRules.burrHeightUcl.toFixed(2)} mm.`); });
+    refreshSpcRuleDisplay();
   </script>
 </body>
 </html>

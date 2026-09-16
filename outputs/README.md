@@ -19,6 +19,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Signal counts and review totals update from acknowledged browser-local decisions.
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
+- Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
 - Browser-local audit trail for key operator decisions and handoffs.
 
 ## Scope note
