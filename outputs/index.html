@@ -212,6 +212,8 @@
     .capa-cause-summary { margin-top: 10px; padding: 10px 11px; border: 1px solid #dce5f5; border-radius: 7px; background: #f8faff; }
     .capa-cause-summary .why-summary-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; padding: 4px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
     .capa-cause-summary .why-summary-row strong { color: var(--cyan-dark); font-size: 9px; }
+    .evidence-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-left: auto; }
+    .evidence-actions .link-button { font-size: 9px; }
     .genealogy { display: flex; flex-direction: column; gap: 0; border-left: 1px solid #d9e6e8; margin: 5px 0 4px 7px; padding-left: 18px; }
     .genealogy-step { position: relative; padding: 0 0 17px; }
     .genealogy-step:last-child { padding-bottom: 0; }
@@ -618,6 +620,10 @@
     updateEvidenceSummary();
     function hasVerifiedActionEvidence(action) { return evidenceRequests.some(request => { const linked = String(request.linked || ''); const lotFallback = action.linked === 'NCR-0264' && linked.includes('L240908-17'); return request.status === 'Verified' && (linked.includes(action.linked) || lotFallback); }); }
     document.addEventListener('click', event => { const button = event.target.closest('[data-advance-action]'); if (!button) return; const action = actions.find(item => item.id === button.dataset.advanceAction); if (!action || nextActionStatus(action.status) !== 'Closed' || hasVerifiedActionEvidence(action)) return; event.preventDefault(); event.stopImmediatePropagation(); showToast('Verify linked evidence before closing this corrective action.'); }, true);
+    function decorateEvidenceActions() { const feed = document.getElementById('evidenceRequestFeed'); if (!feed) return; feed.querySelectorAll('.evidence-row').forEach((row, index) => { const request = evidenceRequests[index]; if (!request || request.status === 'Verified' || row.querySelector('[data-evidence-actions]')) return; const actions = document.createElement('div'); actions.className = 'evidence-actions'; actions.dataset.evidenceActions = 'true'; const review = document.createElement('button'); review.type = 'button'; review.className = 'link-button'; review.dataset.reviewEvidence = request.linked; review.textContent = 'Needs review'; const reject = document.createElement('button'); reject.type = 'button'; reject.className = 'link-button'; reject.dataset.rejectEvidence = request.linked; reject.textContent = 'Reject'; const setStatus = (status, tone, message) => { request.status = status; request.reviewedAt = 'Just now'; saveEvidenceRequests(); recordEvent(status === 'Rejected' ? '!' : '⌕', tone, 'Evidence status updated', request.kind + ' · ' + status); showToast(message); if (currentView === 'evidence') setView('evidence', viewLabels.evidence); }; review.addEventListener('click', () => setStatus('Review', 'amber', request.kind + ' marked for review.')); reject.addEventListener('click', () => setStatus('Rejected', 'red', request.kind + ' rejected.')); actions.append(review, reject); row.appendChild(actions); }); }
+    document.addEventListener('click', event => { const target = event.target.closest('[data-view="evidence"], [data-nav="evidence"], [data-verify-evidence], [data-review-evidence], [data-reject-evidence]'); if (target) setTimeout(decorateEvidenceActions, 0); });
+    document.addEventListener('submit', event => { if (event.target.id === 'evidenceRequestForm') setTimeout(decorateEvidenceActions, 0); });
+    decorateEvidenceActions();
   </script>
 </body>
 </html>

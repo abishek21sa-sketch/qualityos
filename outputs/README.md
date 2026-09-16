@@ -18,6 +18,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Corrective-action closure guard requiring verified evidence linked to the action record.
 - Signal counts and review totals update from acknowledged browser-local decisions.
 - Evidence item and verified totals update from browser-local requests and verification actions.
+- Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
 - Browser-local audit trail for key operator decisions and handoffs.
 
 ## Scope note
