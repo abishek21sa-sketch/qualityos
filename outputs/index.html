@@ -612,6 +612,10 @@
     updateSignalCounts();
     function hasVerifiedEffectivenessEvidence() { return evidenceRequests.some(request => request.status === 'Verified' && /NCR-0264|L240908-17/.test(request.linked || '')); }
     document.addEventListener('click', event => { const button = event.target.closest('[data-capa-next]'); if (!button) return; const capa = capas.find(item => item.id === button.dataset.capaNext); if (!capa || nextCapaStatus(capa.status) !== 'Closed' || hasVerifiedEffectivenessEvidence()) return; event.preventDefault(); event.stopImmediatePropagation(); showToast('Verify at least one evidence request before closing this CAPA.'); }, true);
+    function updateEvidenceSummary() { const total = 18 + evidenceRequests.length; const verified = 4 + evidenceRequests.filter(request => request.status === 'Verified').length; const toolbarCount = currentView === 'evidence' ? mainContent.querySelector('.view-toolbar .toolbar-count') : null; const verifiedPill = currentView === 'evidence' ? mainContent.querySelector('.view-toolbar .toolbar-left .status-pill') : null; if (toolbarCount) toolbarCount.textContent = total + ' evidence items'; if (verifiedPill) verifiedPill.textContent = verified + ' verified today'; }
+    document.addEventListener('click', event => { const target = event.target.closest('[data-view="evidence"], [data-nav="evidence"], [data-verify-evidence]'); if (target) setTimeout(updateEvidenceSummary, 0); });
+    document.addEventListener('submit', event => { if (event.target.id === 'evidenceRequestForm') setTimeout(updateEvidenceSummary, 0); });
+    updateEvidenceSummary();
   </script>
 </body>
 </html>
