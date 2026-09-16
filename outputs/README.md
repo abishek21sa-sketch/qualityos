@@ -27,6 +27,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
 - Browser-local audit trail for key operator decisions and handoffs.
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
+- Evidence library includes a filterable audit trail with CSV export for browser-local decisions and handoffs.
 
 ## Scope note
 
