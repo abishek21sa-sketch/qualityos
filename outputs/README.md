@@ -19,6 +19,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Signal counts and review totals update from acknowledged browser-local decisions.
 - Signal inbox includes browser-local priority scores with persisted Highest risk, Newest, and Needs owner sorting.
 - Signal rows now show 30-day recurrence indicators and support persisted Repeat issues sorting.
+- The visible, filtered signal queue can be exported as CSV with priority and recurrence context.
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
 - Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
