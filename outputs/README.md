@@ -17,6 +17,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - CAPA closure guard requiring verified evidence linked to NCR-0264 or lot L240908-17.
 - Corrective-action closure guard requiring verified evidence linked to the action record.
 - Signal counts and review totals update from acknowledged browser-local decisions.
+- Signal inbox includes browser-local priority scores with persisted Highest risk, Newest, and Needs owner sorting.
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
 - Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
