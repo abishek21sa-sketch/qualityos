@@ -14,6 +14,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Browser-local 5-Why cause chain for NCR-0264, carried with the root-cause context.
 - Configurable browser-local containment checks that participate in completion progress, release gating, and packet export.
 - CAPA records with a browser-local lifecycle: Open, In progress, Effectiveness check, and Closed.
+- CAPA closure guard requiring verified evidence linked to NCR-0264 or lot L240908-17.
 - Signal counts and review totals update from acknowledged browser-local decisions.
 - Browser-local audit trail for key operator decisions and handoffs.
 
