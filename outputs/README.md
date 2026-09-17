@@ -1,6 +1,6 @@
 # QualityOS
 
-QualityOS is a lightweight manufacturing quality-operations cockpit. It is intentionally self-contained: open `index.html` in a browser to run it.
+QualityOS is a lightweight manufacturing quality-operations cockpit. The static demo remains self-contained: open `index.html` in a browser to run it. A dependency-free Node server is also included as the first production API boundary.
 
 ## Included workflow
 
@@ -30,9 +30,10 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Browser-local audit trail for key operator decisions and handoffs.
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
 - Evidence library includes a filterable audit trail with CSV export for browser-local decisions and handoffs.
+- Node API foundation exposes `/api/health` and the read-only `/api/quality/overview` contract while the domain database and authenticated mutations are designed.
 
 ## Scope note
 
 The additional views are fixture-backed workflow shells for continued product exploration. Operator-created records and small evidence attachments persist in the browser only; they do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Pages, Vercel, and Render setup, and [ARCHITECTURE.md](ARCHITECTURE.md) for the browser-local-to-production migration plan.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Pages, Vercel, and Render setup, and [ARCHITECTURE.md](ARCHITECTURE.md) for the browser-local-to-production migration plan. Run `npm test` to validate both the static artifact and API boundary.

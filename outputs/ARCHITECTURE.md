@@ -12,6 +12,18 @@ Browser
 
 This is intentionally suitable for GitHub Pages, Vercel static hosting, or Render Static Site. There is no server-side secret, database, or authenticated user state in the current build.
 
+## First API boundary
+
+The repository now includes a dependency-free Node server for the next migration step. It serves the same `outputs/` UI and exposes two read-only contracts:
+
+```text
+GET /api/health
+GET /api/quality/overview
+GET /api/workspace/overview  (compatibility alias)
+```
+
+The overview response is still fixture-backed and explicitly reports that mutations and persistence are not enabled. This makes the Render API deployment testable without pretending that browser-local state is already multi-user or production-safe.
+
 ## Target production shape
 
 ```text

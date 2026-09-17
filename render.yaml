@@ -1,5 +1,12 @@
 services:
   - type: web
+    name: qualityos-api
+    env: node
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+  - type: web
     name: qualityos
     env: static
     buildCommand: ""

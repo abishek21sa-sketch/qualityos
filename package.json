@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "check": "node scripts/validate.mjs"
+    "check": "node scripts/validate.mjs",
+    "test:api": "node scripts/test-server.mjs",
+    "test": "npm run check && npm run test:api",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

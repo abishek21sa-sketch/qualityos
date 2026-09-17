@@ -10,7 +10,7 @@ Use GitHub Pages for the first public demo. It is the lowest-complexity option f
 
 Use Vercel when preview deployments and a custom domain become more important. The root `vercel.json` publishes `outputs/` with no build step.
 
-Use Render Static Site when the project begins to sit beside a future API or database service. The root `render.yaml` publishes `outputs/` and can later evolve into a multi-service Blueprint.
+Use Render for the first API boundary beside the static UI. The root `render.yaml` now declares a `qualityos-api` Node web service with `/api/health` health checks, alongside the existing static `qualityos` service.
 
 ## GitHub Pages
 
@@ -29,9 +29,9 @@ See [Vercel deployment documentation](https://vercel.com/docs/deployments/overvi
 
 ## Render
 
-Create a Render Static Site connected to the repository, or use the checked-in Blueprint configuration. The static publish directory is `outputs/` and the build command is intentionally empty.
+Create the Render services from the checked-in Blueprint configuration, or keep the existing Render Static Site for the demo and add a Node Web Service for `qualityos-api`. The static publish directory is `outputs/`; the API uses `npm install --omit=dev` and `npm start`.
 
-Render can auto-deploy from a connected Git branch and provides a hosted `onrender.com` URL. See [Render Static Sites](https://render.com/docs/static-sites).
+Render can auto-deploy from a connected Git branch and provides hosted `onrender.com` URLs. The current API is read-only and fixture-backed; it does not yet persist quality records. See [Render Static Sites](https://render.com/docs/static-sites) and [Render Web Services](https://render.com/docs/web-services).
 
 ## Important data boundary
 
