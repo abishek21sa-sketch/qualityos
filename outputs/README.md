@@ -31,10 +31,11 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
 - Evidence library includes a filterable audit trail with CSV export for browser-local decisions and handoffs.
 - Node API foundation exposes `/api/health`, the read-only `/api/quality/overview` contract, and token-protected `/api/workspace` read/write persistence for the migration path.
+- The API also exposes token-protected record-level list/read/create/patch routes for actions, evidence, inspections, and CAPAs; `db/schema.sql` documents the reviewed PostgreSQL target shape.
 - API sync panel lets an operator test the server, then explicitly pull or push the workspace while retaining browser-local fallback; API tokens stay session-only.
 
 ## Scope note
 
-The additional views are fixture-backed workflow shells for continued product exploration. Operator-created records and small evidence attachments persist in the browser only; they do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
+The additional views are fixture-backed workflow shells for continued product exploration. Browser-local state remains the default UI store; the token-protected Node adapter now supports explicit workspace sync and record-level API contracts, but it is not yet a full QMS/MES or multi-user authorization layer. See [ROADMAP.md](ROADMAP.md) for the planned boundary, [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts, and [db/README.md](../db/README.md) for the PostgreSQL starting point.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Pages, Vercel, and Render setup, and [ARCHITECTURE.md](ARCHITECTURE.md) for the browser-local-to-production migration plan. Run `npm test` to validate both the static artifact and API boundary.

@@ -31,7 +31,7 @@ See [Vercel deployment documentation](https://vercel.com/docs/deployments/overvi
 
 Create the Render services from the checked-in Blueprint configuration, or keep the existing Render Static Site for the demo and add a Node Web Service for `qualityos-api`. The static publish directory is `outputs/`; the API uses `npm install --omit=dev` and `npm start`.
 
-Render can auto-deploy from a connected Git branch and provides hosted `onrender.com` URLs. The API now has a token-protected file-backed workspace endpoint, but it is still a migration adapter rather than a database-backed QMS. See [Render Static Sites](https://render.com/docs/static-sites) and [Render Web Services](https://render.com/docs/web-services).
+Render can auto-deploy from a connected Git branch and provides hosted `onrender.com` URLs. The API now has token-protected workspace and record-level routes for the migration adapter, but it is still file-backed rather than a database-backed QMS. See [Render Static Sites](https://render.com/docs/static-sites) and [Render Web Services](https://render.com/docs/web-services).
 
 ### API service configuration
 
@@ -39,6 +39,6 @@ The `qualityos-api` service expects `QUALITYOS_API_TOKEN` to be set as a secret 
 
 ## Important data boundary
 
-The current static UI stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, audit events, SPC rule settings, and the API URL in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. The API workspace endpoint is separately token-protected and file-backed; it does not yet provide record-level authorization, conflict handling, database transactions, or production file storage. The sync token remains in page memory only. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
+The current static UI stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, audit events, SPC rule settings, and the API URL in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. The API workspace and record endpoints are separately token-protected and file-backed; they do not yet provide row-level authorization, conflict handling, database transactions, or production file storage. `db/schema.sql` is a reviewable PostgreSQL starting point, not an active migration. The sync token remains in page memory only. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
 
 Before using QualityOS for real quality records, introduce an authenticated API and database layer. The current export action is the safe handoff for demo data while that backend boundary is designed.

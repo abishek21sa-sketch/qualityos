@@ -1,7 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -9,6 +9,14 @@ const defaultStaticRoot = path.join(projectRoot, 'outputs');
 const defaultWorkspaceFile = path.join(process.env.QUALITYOS_DATA_DIR || path.join(projectRoot, 'data'), 'workspace.json');
 const apiVersion = '0.1.0';
 const maxWorkspaceBytes = 8 * 1024 * 1024;
+const maxRecordBytes = 1024 * 1024;
+
+const recordCollections = {
+  actions: 'actions',
+  evidence: 'evidenceRequests',
+  inspections: 'inspectionRecords',
+  capas: 'capas'
+};
 
 const overviewPayload = {
   apiVersion,
@@ -119,6 +127,39 @@ function readRequestBody(request, limit) {
   });
 }
 
+function collectionField(collection) {
+  return recordCollections[collection] || null;
+}
+
+function normalizeRecordPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const record = { ...payload };
+  if (record.id !== undefined && (typeof record.id !== 'string' || record.id.length < 1 || record.id.length > 80)) return null;
+  record.id = record.id || `API-${randomUUID().slice(0, 8).toUpperCase()}`;
+  return record;
+}
+
+function findRecord(records, id) {
+  return records.find(record => String(record?.id || '') === id) || null;
+}
+
+async function readJsonPayload(request, limit) {
+  const declaredLength = Number(request.headers['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > limit) throw Object.assign(new Error('Payload too large'), { code: 'PAYLOAD_TOO_LARGE' });
+  if (!String(request.headers['content-type'] || '').toLowerCase().includes('application/json')) throw Object.assign(new Error('JSON required'), { code: 'UNSUPPORTED_MEDIA_TYPE' });
+  let body;
+  try {
+    body = await readRequestBody(request, limit);
+  } catch (error) {
+    throw error;
+  }
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw Object.assign(new Error('Invalid JSON'), { code: 'INVALID_JSON' });
+  }
+}
+
 function isInsideDirectory(candidate, directory) {
   const resolvedDirectory = path.resolve(directory);
   const resolvedCandidate = path.resolve(candidate);
@@ -173,7 +214,7 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
       if (isApiRequest && allowedOrigin && (allowedOrigin === '*' || requestOrigin === allowedOrigin)) {
         response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
         response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-        response.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+        response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, OPTIONS');
         response.setHeader('Vary', 'Origin');
       }
       if (isApiRequest && request.method === 'OPTIONS') {
@@ -233,8 +274,68 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
         return;
       }
 
+      const recordRoute = /^\/api\/records\/([^/]+)(?:\/([^/]+))?$/.exec(requestUrl.pathname);
+      if (recordRoute && ['GET', 'POST', 'PATCH'].includes(request.method)) {
+        const collection = decodeURIComponent(recordRoute[1]);
+        const field = collectionField(collection);
+        if (!field) {
+          sendJson(response, 404, { error: 'Unsupported record collection.', collection });
+          return;
+        }
+        const authentication = authenticate(request, apiToken);
+        if (!authentication.ok) {
+          response.setHeader('WWW-Authenticate', 'Bearer');
+          sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        const workspace = await readWorkspace(workspaceFile);
+        const records = Array.isArray(workspace.data[field]) ? workspace.data[field] : [];
+        const recordId = recordRoute[2] ? decodeURIComponent(recordRoute[2]) : null;
+        if (request.method === 'GET') {
+          if (recordId) {
+            const record = findRecord(records, recordId);
+            if (!record) { sendJson(response, 404, { error: 'Record not found.', collection, id: recordId }); return; }
+            sendJson(response, 200, { collection, record, updatedAt: workspace.updatedAt });
+          } else {
+            sendJson(response, 200, { collection, items: records, updatedAt: workspace.updatedAt });
+          }
+          return;
+        }
+        if (request.method === 'POST' && recordId) {
+          sendJson(response, 400, { error: 'POST creates a record collection item and cannot include an id in the path.' });
+          return;
+        }
+        if (request.method === 'PATCH' && !recordId) {
+          sendJson(response, 400, { error: 'PATCH requires a record id in the path.' });
+          return;
+        }
+        let payload;
+        try {
+          payload = await readJsonPayload(request, maxRecordBytes);
+        } catch (error) {
+          const status = error.code === 'PAYLOAD_TOO_LARGE' ? 413 : error.code === 'UNSUPPORTED_MEDIA_TYPE' ? 415 : 400;
+          sendJson(response, status, { error: status === 413 ? 'Record payload exceeds the 1 MB limit.' : status === 415 ? 'Record mutations require application/json.' : 'Record payload must be valid JSON.' });
+          return;
+        }
+        if (request.method === 'POST') {
+          const record = normalizeRecordPayload(payload);
+          if (!record) { sendJson(response, 400, { error: 'Record must be a JSON object with an optional id up to 80 characters.' }); return; }
+          if (findRecord(records, record.id)) { sendJson(response, 409, { error: 'A record with that id already exists.', collection, id: record.id }); return; }
+          const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: [record, ...records] } });
+          sendJson(response, 201, { collection, record, updatedAt: saved.updatedAt });
+          return;
+        }
+        const existing = findRecord(records, recordId);
+        if (!existing) { sendJson(response, 404, { error: 'Record not found.', collection, id: recordId }); return; }
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload) || (payload.id !== undefined && payload.id !== recordId)) { sendJson(response, 400, { error: 'Patch must be an object and cannot change the record id.' }); return; }
+        const updated = { ...existing, ...payload, id: recordId };
+        const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: records.map(record => record.id === recordId ? updated : record) } });
+        sendJson(response, 200, { collection, record: updated, updatedAt: saved.updatedAt });
+        return;
+      }
+
       if (requestUrl.pathname.startsWith('/api/')) {
-        response.setHeader('Allow', 'GET, PUT, OPTIONS');
+        response.setHeader('Allow', 'GET, POST, PATCH, PUT, OPTIONS');
         sendJson(response, 404, { error: 'Route not found', path: requestUrl.pathname });
         return;
       }

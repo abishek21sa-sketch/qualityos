@@ -14,15 +14,19 @@ This is intentionally suitable for GitHub Pages, Vercel static hosting, or Rende
 
 ## First API boundary
 
-The repository now includes a dependency-free Node server for the next migration step. It serves the same `outputs/` UI and exposes two read-only contracts:
+The repository now includes a dependency-free Node server for the next migration step. It serves the same `outputs/` UI and exposes overview, workspace, and record-level contracts:
 
 ```text
 GET /api/health
 GET /api/quality/overview
 GET /api/workspace/overview  (compatibility alias)
+GET /api/records/:collection
+GET /api/records/:collection/:id
+POST /api/records/:collection
+PATCH /api/records/:collection/:id
 ```
 
-The overview response is still fixture-backed. The `/api/workspace` endpoint now supports token-protected `GET` and `PUT` operations against a versioned file-backed workspace, with an 8 MB request limit and atomic replacement writes. This makes the Render API deployment testable without pretending that record-level authorization, database transactions, or browser-local state are already multi-user or production-safe.
+The overview response is still fixture-backed. The `/api/workspace` endpoint supports token-protected `GET` and `PUT` operations against a versioned file-backed workspace, with an 8 MB request limit and atomic replacement writes. Record routes currently cover `actions`, `evidence`, `inspections`, and `capas`, and use the same bearer token with bounded payloads and atomic workspace writes. `db/schema.sql` defines the reviewed PostgreSQL target shape, but the running Node API does not execute it yet; row-level authorization, database transactions, and conflict handling remain future boundaries.
 
 The static UI's API sync panel uses explicit Pull and Push actions. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback until a full authenticated session and conflict strategy are added.
 
@@ -46,7 +50,7 @@ Browser app
 
 1. Keep the current fixture and UI contract stable.
 2. Replace the local fixture with a read-only `/api/quality/overview` response.
-3. Move actions, acknowledgements, dispositions, CAPA records, and audit events to authenticated API mutations.
+3. Move actions, acknowledgements, dispositions, CAPA records, and audit events to authenticated API mutations; the current record routes and PostgreSQL schema establish the contract to harden.
 4. Add database-backed evidence metadata and object-storage uploads.
 5. Add role-based access, supplier access boundaries, and immutable audit events.
 6. Add SPC computation and notification jobs behind the API; keep the current UI focused on decisions.
