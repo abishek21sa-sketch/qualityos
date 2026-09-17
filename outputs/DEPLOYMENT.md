@@ -35,6 +35,6 @@ Render can auto-deploy from a connected Git branch and provides a hosted `onrend
 
 ## Important data boundary
 
-The current app stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, and audit events in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
+The current app stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, audit events, and SPC rule settings in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
 
 Before using QualityOS for real quality records, introduce an authenticated API and database layer. The current export action is the safe handoff for demo data while that backend boundary is designed.

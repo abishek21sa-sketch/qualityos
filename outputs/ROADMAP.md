@@ -21,7 +21,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 
 ## Phase 3 — Quality intelligence
 
-- Full SPC rule library with configurable limits and rational subgrouping (initial burr-height UCL setting implemented).
+- Full SPC rule library with configurable limits and rational subgrouping (browser-local Rule 1 UCL and Rule 4 upward-trend detection are implemented; subgrouping and additional characteristics remain future work).
 - Initial browser-local 5-Why cause chain and CAPA status workflow are implemented; expand into fishbone and a full 8D/CAPA workspace.
 - Risk-based prioritization and recurrence detection (initial signal priority, 30-day recurrence, and NCR risk-assessment RPN are implemented).
 - Effectiveness checks with before/after process capability (browser-local before/after burr-height checks plus verified-evidence closure gates implemented for CAPA and corrective actions).

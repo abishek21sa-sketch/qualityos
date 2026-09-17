@@ -26,7 +26,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
 - Evidence library supports browser-local file attachments linked to an NCR, lot, or CAPA, with image/PDF preview, download, and review decisions.
-- Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
+- Browser-local SPC rule settings for the burr-height UCL plus configurable Rule 1 and Rule 4 trend detection, shared by inspection warnings and review context.
 - Browser-local audit trail for key operator decisions and handoffs.
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
 - Evidence library includes a filterable audit trail with CSV export for browser-local decisions and handoffs.
