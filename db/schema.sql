@@ -83,6 +83,7 @@ CREATE TABLE inspections (
   notes text,
   spc_rule text,
   spc_limit numeric(12, 4),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   recorded_at timestamptz NOT NULL DEFAULT now()
 );
 
