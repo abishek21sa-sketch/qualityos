@@ -50,6 +50,15 @@ function displayActionPriority(value) {
   return String(value || 'medium').replace(/^./, letter => letter.toUpperCase());
 }
 
+function evidenceStatus(value) {
+  const normalized = String(value || '').toLowerCase().replace(/\s+/g, '_');
+  return ['requested', 'review', 'rejected', 'verified'].includes(normalized) ? normalized : 'requested';
+}
+
+function displayEvidenceStatus(value) {
+  return { requested: 'Requested', review: 'Review', rejected: 'Rejected', verified: 'Verified' }[value] || 'Requested';
+}
+
 function mapAction(row) {
   const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
   const { __qualityos_order: ignoredOrder, ...record } = metadata;
@@ -103,6 +112,18 @@ function mapInspection(row) {
     operator: record.operator || '',
     notes: row.notes || record.notes || '',
     ...(row.spc_rule ? { spcSignal: record.spcSignal || { rule: row.spc_rule, limit: row.spc_limit === null ? '' : `${Number(row.spc_limit).toFixed(2)} ${row.unit}`, observed: measured, reason: 'Persisted SPC context' } } : {})
+  };
+}
+
+function mapEvidenceRequest(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  const { __qualityos_order: ignoredOrder, recordType: ignoredRecordType, ...record } = metadata;
+  return {
+    ...record,
+    id: record.id || row.id,
+    status: displayEvidenceStatus(row.status),
+    kind: record.kind || row.file_name,
+    note: record.note || ''
   };
 }
 
@@ -213,6 +234,40 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
     }
   }
 
+  async function syncEvidence(client, requests, attachments) {
+    if (!Array.isArray(requests) && !Array.isArray(attachments)) return;
+    await client.query('DELETE FROM evidence WHERE workspace_id = $1', [workspaceId]);
+    const seen = new Set();
+    let order = 0;
+
+    async function insertEvidence(source, recordType, index) {
+      if (!source || typeof source !== 'object') return;
+      const prefix = recordType === 'attachment' ? 'LE' : 'EV';
+      const evidenceId = String(source.id || `${prefix}-${index + 1}`).slice(0, 80);
+      if (seen.has(evidenceId)) return;
+      seen.add(evidenceId);
+      const metadata = { ...source, id: evidenceId, recordType, __qualityos_order: order++ };
+      // Browser attachments can contain a base64 data URL. Keep bytes in the
+      // workspace bridge for now, but never duplicate them in relational metadata.
+      if (recordType === 'attachment') delete metadata.dataUrl;
+      const fileName = String(source.name || source.kind || 'Evidence record').slice(0, 240);
+      const contentType = String(source.type || (recordType === 'request' ? 'application/json' : 'application/octet-stream')).slice(0, 160);
+      await client.query(`INSERT INTO evidence
+        (workspace_id, file_name, content_type, object_key, status, metadata)
+        VALUES ($1, $2, $3, $4, $5::evidence_status, $6::jsonb)`, [
+        workspaceId,
+        fileName,
+        contentType,
+        null,
+        evidenceStatus(source.status),
+        JSON.stringify(metadata)
+      ]);
+    }
+
+    for (const [index, request] of (Array.isArray(requests) ? requests : []).entries()) await insertEvidence(request, 'request', index);
+    for (const [index, attachment] of (Array.isArray(attachments) ? attachments : []).entries()) await insertEvidence(attachment, 'attachment', index);
+  }
+
   async function read() {
     const pool = await getPool();
     const result = await pool.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1', [workspaceId]);
@@ -230,6 +285,11 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
       WHERE i.workspace_id = $1
       ORDER BY NULLIF(i.metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, i.recorded_at DESC`, [workspaceId]);
     if (inspections.rows.length) workspace.data = { ...workspace.data, inspectionRecords: inspections.rows.map(mapInspection) };
+    const evidence = await pool.query(`SELECT id, file_name, content_type, status, metadata
+      FROM evidence WHERE workspace_id = $1
+      ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, created_at DESC`, [workspaceId]);
+    const evidenceRequests = evidence.rows.filter(row => row.metadata?.recordType !== 'attachment').map(mapEvidenceRequest);
+    if (evidenceRequests.length) workspace.data = { ...workspace.data, evidenceRequests };
     return workspace;
   }
 
@@ -250,6 +310,7 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
       await syncActions(client, next.data.actions);
       await syncCapas(client, next.data.capas);
       await syncInspections(client, next.data.inspectionRecords);
+      await syncEvidence(client, next.data.evidenceRequests, next.data.localEvidence);
       await client.query(`INSERT INTO workspace_state (workspace_id, version, state, updated_at)
         VALUES ($1, $2, $3::jsonb, $4)
         ON CONFLICT (workspace_id) DO UPDATE SET version = EXCLUDED.version, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at`, [workspaceId, next.version, JSON.stringify(next.data), next.updatedAt]);

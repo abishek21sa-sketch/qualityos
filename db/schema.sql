@@ -174,6 +174,7 @@ CREATE TABLE evidence (
   content_type text NOT NULL,
   object_key text,
   status evidence_status NOT NULL DEFAULT 'requested',
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   requested_by uuid REFERENCES users(id),
   verified_by uuid REFERENCES users(id),
   verified_at timestamptz,

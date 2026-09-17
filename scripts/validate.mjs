@@ -45,7 +45,7 @@ for (const marker of ['recordRoute', 'recordCollections', "['GET', 'POST', 'PATC
   if (!server.includes(marker)) throw new Error(`API route marker missing: ${marker}`);
 }
 
-for (const marker of ['createPostgresWorkspaceStore', 'workspace_state', 'corrective_actions', 'syncActions', 'syncCapas', 'syncInspections', 'capas', 'inspections', 'FOR UPDATE']) {
+for (const marker of ['createPostgresWorkspaceStore', 'workspace_state', 'corrective_actions', 'syncActions', 'syncCapas', 'syncInspections', 'syncEvidence', 'capas', 'inspections', 'evidence', 'FOR UPDATE']) {
   if (!postgresStore.includes(marker)) throw new Error(`PostgreSQL adapter marker missing: ${marker}`);
 }
 
