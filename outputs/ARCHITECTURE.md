@@ -28,7 +28,7 @@ PATCH /api/records/:collection/:id
 
 The overview response is still fixture-backed. The `/api/workspace` endpoint supports token-protected `GET` and `PUT` operations against a versioned file-backed workspace, with an 8 MB request limit and atomic replacement writes. Record routes currently cover `actions`, `evidence`, `inspections`, and `capas`, and use the same bearer token with bounded payloads and atomic workspace writes. `db/schema.sql` defines the reviewed PostgreSQL target shape, but the running Node API does not execute it yet; row-level authorization, database transactions, and conflict handling remain future boundaries.
 
-The static UI's API sync panel uses explicit Pull and Push actions. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback until a full authenticated session and conflict strategy are added.
+The static UI's API sync panel uses explicit workspace Pull/Push actions plus collection-level Pull/Push actions for the four record routes. Collection Pull replaces only the selected local collection; collection Push reads remote IDs and upserts local records one at a time. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback until a full authenticated session, conflict strategy, and database adapter are added.
 
 ## Target production shape
 

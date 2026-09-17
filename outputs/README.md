@@ -33,6 +33,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - Node API foundation exposes `/api/health`, the read-only `/api/quality/overview` contract, and token-protected `/api/workspace` read/write persistence for the migration path.
 - The API also exposes token-protected record-level list/read/create/patch routes for actions, evidence, inspections, and CAPAs; `db/schema.sql` documents the reviewed PostgreSQL target shape.
 - API sync panel lets an operator test the server, then explicitly pull or push the workspace while retaining browser-local fallback; API tokens stay session-only.
+- API sync also supports an explicit collection-level pull or item-by-item upsert for actions, evidence requests, inspections, and CAPAs, with counts and audit events after each successful operation.
 
 ## Scope note
 

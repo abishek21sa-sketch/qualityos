@@ -23,7 +23,10 @@ const requiredMarkers = [
   'capaModal',
   'exportQualityPacket',
   'apiSyncModal',
-  'apiRequest'
+  'apiRequest',
+  'apiRecordCollection',
+  'pullApiRecords',
+  'pushApiRecords'
 ];
 
 for (const marker of requiredMarkers) {
