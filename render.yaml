@@ -6,6 +6,17 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
+    envVars:
+      - key: QUALITYOS_DATA_DIR
+        value: /var/data
+      - key: QUALITYOS_API_TOKEN
+        sync: false
+      - key: QUALITYOS_ALLOWED_ORIGIN
+        sync: false
+    disk:
+      name: qualityos-data
+      mountPath: /var/data
+      sizeGB: 1
   - type: web
     name: qualityos
     env: static

@@ -1,11 +1,14 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultStaticRoot = path.join(projectRoot, 'outputs');
+const defaultWorkspaceFile = path.join(process.env.QUALITYOS_DATA_DIR || path.join(projectRoot, 'data'), 'workspace.json');
 const apiVersion = '0.1.0';
+const maxWorkspaceBytes = 8 * 1024 * 1024;
 
 const overviewPayload = {
   apiVersion,
@@ -23,8 +26,8 @@ const overviewPayload = {
   },
   contracts: {
     overview: 'read-only migration contract',
-    mutations: 'not enabled',
-    persistence: 'not enabled'
+    mutations: 'authenticated workspace endpoint',
+    persistence: 'file-backed prototype'
   }
 };
 
@@ -52,6 +55,68 @@ function sendText(response, status, message) {
     'Content-Type': 'text/plain; charset=utf-8'
   });
   response.end(message);
+}
+
+function defaultWorkspace() {
+  return {
+    format: 'QualityOS server workspace',
+    version: 1,
+    updatedAt: null,
+    data: {}
+  };
+}
+
+async function readWorkspace(workspaceFile) {
+  try {
+    const stored = JSON.parse(await fs.readFile(workspaceFile, 'utf8'));
+    if (stored?.format === 'QualityOS server workspace' && stored?.version === 1 && stored?.data && typeof stored.data === 'object') return stored;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  return defaultWorkspace();
+}
+
+function validateWorkspacePayload(payload) {
+  return payload && typeof payload === 'object' && payload.version === 1 && ['QualityOS browser workspace', 'QualityOS server workspace'].includes(payload.format) && payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data);
+}
+
+async function writeWorkspace(workspaceFile, payload) {
+  const next = { format: 'QualityOS server workspace', version: 1, updatedAt: new Date().toISOString(), data: payload.data };
+  await fs.mkdir(path.dirname(workspaceFile), { recursive: true });
+  const temporaryFile = `${workspaceFile}.${process.pid}.tmp`;
+  await fs.writeFile(temporaryFile, JSON.stringify(next, null, 2), 'utf8');
+  await fs.rename(temporaryFile, workspaceFile);
+  return next;
+}
+
+function authenticate(request, expectedToken) {
+  if (!expectedToken) return { ok: false, status: 503, error: 'Workspace API token is not configured.' };
+  const authorization = String(request.headers.authorization || '');
+  const receivedToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  const expected = Buffer.from(String(expectedToken));
+  const received = Buffer.from(receivedToken);
+  const valid = expected.length === received.length && timingSafeEqual(expected, received);
+  return valid ? { ok: true } : { ok: false, status: 401, error: 'A valid Bearer token is required.' };
+}
+
+function readRequestBody(request, limit) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    let tooLarge = false;
+    request.setEncoding('utf8');
+    request.on('data', chunk => {
+      if (tooLarge) return;
+      totalBytes += Buffer.byteLength(chunk);
+      if (totalBytes > limit) {
+        tooLarge = true;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => tooLarge ? reject(Object.assign(new Error('Payload too large'), { code: 'PAYLOAD_TOO_LARGE' })) : resolve(chunks.join('')));
+    request.on('error', reject);
+  });
 }
 
 function isInsideDirectory(candidate, directory) {
@@ -99,10 +164,23 @@ async function serveStatic(request, response, staticRoot, pathname) {
   }
 }
 
-export function createServer({ staticRoot = defaultStaticRoot } = {}) {
+export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN } = {}) {
   return http.createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || '/', 'http://localhost');
+      const isApiRequest = requestUrl.pathname.startsWith('/api/');
+      const requestOrigin = String(request.headers.origin || '');
+      if (isApiRequest && allowedOrigin && (allowedOrigin === '*' || requestOrigin === allowedOrigin)) {
+        response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+        response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        response.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+        response.setHeader('Vary', 'Origin');
+      }
+      if (isApiRequest && request.method === 'OPTIONS') {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
 
       if (requestUrl.pathname === '/api/health' && request.method === 'GET') {
         sendJson(response, 200, {
@@ -120,15 +198,51 @@ export function createServer({ staticRoot = defaultStaticRoot } = {}) {
         return;
       }
 
+      if (requestUrl.pathname === '/api/workspace' && ['GET', 'PUT'].includes(request.method)) {
+        const authentication = authenticate(request, apiToken);
+        if (!authentication.ok) {
+          response.setHeader('WWW-Authenticate', 'Bearer');
+          sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        if (request.method === 'GET') {
+          sendJson(response, 200, await readWorkspace(workspaceFile));
+          return;
+        }
+        const declaredLength = Number(request.headers['content-length']);
+        if (Number.isFinite(declaredLength) && declaredLength > maxWorkspaceBytes) {
+          sendJson(response, 413, { error: 'Workspace payload exceeds the 8 MB limit.' });
+          return;
+        }
+        if (!String(request.headers['content-type'] || '').toLowerCase().includes('application/json')) {
+          sendJson(response, 415, { error: 'Workspace mutations require application/json.' });
+          return;
+        }
+        let payload;
+        try {
+          payload = JSON.parse(await readRequestBody(request, maxWorkspaceBytes));
+        } catch (error) {
+          sendJson(response, error.code === 'PAYLOAD_TOO_LARGE' ? 413 : 400, { error: error.code === 'PAYLOAD_TOO_LARGE' ? 'Workspace payload exceeds the 8 MB limit.' : 'Workspace payload must be valid JSON.' });
+          return;
+        }
+        if (!validateWorkspacePayload(payload)) {
+          sendJson(response, 400, { error: 'Workspace payload must use a supported QualityOS format and version 1.' });
+          return;
+        }
+        sendJson(response, 200, await writeWorkspace(workspaceFile, payload));
+        return;
+      }
+
       if (requestUrl.pathname.startsWith('/api/')) {
-        response.setHeader('Allow', 'GET');
+        response.setHeader('Allow', 'GET, PUT, OPTIONS');
         sendJson(response, 404, { error: 'Route not found', path: requestUrl.pathname });
         return;
       }
 
       await serveStatic(request, response, staticRoot, requestUrl.pathname);
-    } catch {
-      sendJson(response, 500, { error: 'QualityOS server error' });
+    } catch (error) {
+      if (response.headersSent) return;
+      sendJson(response, error.code === 'PAYLOAD_TOO_LARGE' ? 413 : 500, { error: error.code === 'PAYLOAD_TOO_LARGE' ? 'Workspace payload exceeds the 8 MB limit.' : 'QualityOS server error' });
     }
   });
 }

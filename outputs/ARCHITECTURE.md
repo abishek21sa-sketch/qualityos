@@ -22,7 +22,7 @@ GET /api/quality/overview
 GET /api/workspace/overview  (compatibility alias)
 ```
 
-The overview response is still fixture-backed and explicitly reports that mutations and persistence are not enabled. This makes the Render API deployment testable without pretending that browser-local state is already multi-user or production-safe.
+The overview response is still fixture-backed. The `/api/workspace` endpoint now supports token-protected `GET` and `PUT` operations against a versioned file-backed workspace, with an 8 MB request limit and atomic replacement writes. This makes the Render API deployment testable without pretending that record-level authorization, database transactions, or browser-local state are already multi-user or production-safe.
 
 ## Target production shape
 

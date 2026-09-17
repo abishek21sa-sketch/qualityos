@@ -12,7 +12,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 
 ## Phase 2 — Workflow depth
 
-- Persisted records and audit history (browser-local today, with reviewed JSON workspace backup/restore, a filterable audit trail, and a first read-only API boundary).
+- Persisted records and audit history (browser-local today, with reviewed JSON workspace backup/restore, a filterable audit trail, and a token-protected file-backed API workspace adapter).
 - Signal inbox with acknowledgement, assignment, severity, and saved filters.
 - Lot genealogy and supplier scorecards.
 - Inspection entry and defect-code management (initial browser-local inspection slice implemented).

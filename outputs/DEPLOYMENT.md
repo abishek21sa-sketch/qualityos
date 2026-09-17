@@ -31,10 +31,14 @@ See [Vercel deployment documentation](https://vercel.com/docs/deployments/overvi
 
 Create the Render services from the checked-in Blueprint configuration, or keep the existing Render Static Site for the demo and add a Node Web Service for `qualityos-api`. The static publish directory is `outputs/`; the API uses `npm install --omit=dev` and `npm start`.
 
-Render can auto-deploy from a connected Git branch and provides hosted `onrender.com` URLs. The current API is read-only and fixture-backed; it does not yet persist quality records. See [Render Static Sites](https://render.com/docs/static-sites) and [Render Web Services](https://render.com/docs/web-services).
+Render can auto-deploy from a connected Git branch and provides hosted `onrender.com` URLs. The API now has a token-protected file-backed workspace endpoint, but it is still a migration adapter rather than a database-backed QMS. See [Render Static Sites](https://render.com/docs/static-sites) and [Render Web Services](https://render.com/docs/web-services).
+
+### API service configuration
+
+The `qualityos-api` service expects `QUALITYOS_API_TOKEN` to be set as a secret and writes the workspace to `QUALITYOS_DATA_DIR`. The Blueprint mounts a 1 GB persistent disk at `/var/data`; set `QUALITYOS_ALLOWED_ORIGIN` to the exact Vercel or custom-domain origin before connecting the static UI to the API. Never commit the token or a workspace JSON file.
 
 ## Important data boundary
 
-The current app stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, audit events, and SPC rule settings in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
+The current static UI stores actions, acknowledgements, evidence requests, small evidence attachments, CAPA records, lot disposition, root-cause notes, audit events, and SPC rule settings in browser `localStorage`. That state is device/browser-local and is not shared between users or deployments. The API workspace endpoint is separately token-protected and file-backed; it does not yet provide record-level authorization, conflict handling, database transactions, or production file storage. Local attachments are capped at 1 MB each and are a workflow prototype, not production file storage.
 
 Before using QualityOS for real quality records, introduce an authenticated API and database layer. The current export action is the safe handoff for demo data while that backend boundary is designed.
