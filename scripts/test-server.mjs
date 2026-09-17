@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createServer } from '../server.mjs';
 
 const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'qualityos-api-'));
-const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token', apiTokens: [{ token: 'supplier-token', subject: 'supplier-portal', role: 'supplier', workspaceId: 'apex-motion-plant-04' }] });
+const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token', apiTokens: [{ token: 'supplier-token', subject: 'supplier-portal', role: 'supplier', workspaceId: 'apex-motion-plant-04' }, { token: 'wrong-workspace-token', subject: 'other-plant', role: 'quality_engineer', workspaceId: 'other-plant' }] });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;
@@ -42,6 +42,9 @@ try {
   assert.equal(supplierSession.subject, 'supplier-portal');
   assert.equal(supplierSession.role, 'supplier');
   assert.equal(supplierSession.permissions.mutate, false);
+
+  const wrongWorkspaceSessionResponse = await fetch(`${baseUrl}/api/session`, { headers: { Authorization: 'Bearer wrong-workspace-token' } });
+  assert.equal(wrongWorkspaceSessionResponse.status, 403);
 
   const supplierWorkspaceReadResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer supplier-token' } });
   assert.equal(supplierWorkspaceReadResponse.status, 200);

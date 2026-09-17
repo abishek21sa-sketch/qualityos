@@ -145,6 +145,14 @@ function authenticate(request, authConfig) {
   return { ok: false, status: 401, error: 'A valid Bearer token is required.' };
 }
 
+function hasWorkspaceAccess(authentication, workspaceIdentifiers) {
+  return !authentication.workspaceId || workspaceIdentifiers.has(String(authentication.workspaceId));
+}
+
+function sendWorkspaceForbidden(response, workspaceId) {
+  sendJson(response, 403, { error: 'This API identity is not assigned to the requested workspace.', workspaceId });
+}
+
 function readRequestBody(request, limit) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -243,8 +251,9 @@ async function serveStatic(request, response, staticRoot, pathname) {
   }
 }
 
-export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, apiTokens = process.env.QUALITYOS_API_TOKENS, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN, databaseUrl = process.env.DATABASE_URL, databaseWorkspaceId = process.env.QUALITYOS_DATABASE_WORKSPACE_ID || defaultDatabaseWorkspaceId, databaseWorkspaceSlug = process.env.QUALITYOS_DATABASE_WORKSPACE_SLUG || 'qualityos-default', databaseWorkspaceName = process.env.QUALITYOS_DATABASE_WORKSPACE_NAME || 'QualityOS' } = {}) {
+export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, workspaceId = process.env.QUALITYOS_WORKSPACE_ID || overviewPayload.workspace.id, apiToken = process.env.QUALITYOS_API_TOKEN, apiTokens = process.env.QUALITYOS_API_TOKENS, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN, databaseUrl = process.env.DATABASE_URL, databaseWorkspaceId = process.env.QUALITYOS_DATABASE_WORKSPACE_ID || defaultDatabaseWorkspaceId, databaseWorkspaceSlug = process.env.QUALITYOS_DATABASE_WORKSPACE_SLUG || 'qualityos-default', databaseWorkspaceName = process.env.QUALITYOS_DATABASE_WORKSPACE_NAME || 'QualityOS' } = {}) {
   const authConfig = { apiToken, apiTokens: parseApiTokens(apiTokens) };
+  const workspaceIdentifiers = new Set([workspaceId, databaseWorkspaceId, databaseWorkspaceSlug].filter(Boolean).map(String));
   const postgresStore = databaseUrl ? createPostgresWorkspaceStore({ databaseUrl, workspaceId: databaseWorkspaceId, workspaceSlug: databaseWorkspaceSlug, workspaceName: databaseWorkspaceName }) : null;
   const readStoredWorkspace = () => postgresStore ? postgresStore.read() : readWorkspace(workspaceFile);
   const writeStoredWorkspace = async (payload, expectedEtag) => {
@@ -296,6 +305,10 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           sendJson(response, authentication.status, { error: authentication.error });
           return;
         }
+        if (!hasWorkspaceAccess(authentication, workspaceIdentifiers)) {
+          sendWorkspaceForbidden(response, authentication.workspaceId);
+          return;
+        }
         sendJson(response, 200, {
           authenticated: true,
           subject: authentication.subject,
@@ -312,6 +325,10 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
         if (!authentication.ok) {
           response.setHeader('WWW-Authenticate', 'Bearer');
           sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        if (!hasWorkspaceAccess(authentication, workspaceIdentifiers)) {
+          sendWorkspaceForbidden(response, authentication.workspaceId);
           return;
         }
         if (request.method === 'PUT' && !mutationRoles.has(authentication.role)) {
@@ -371,6 +388,10 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
         if (!authentication.ok) {
           response.setHeader('WWW-Authenticate', 'Bearer');
           sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        if (!hasWorkspaceAccess(authentication, workspaceIdentifiers)) {
+          sendWorkspaceForbidden(response, authentication.workspaceId);
           return;
         }
         if (request.method !== 'GET' && !mutationRoles.has(authentication.role)) {
