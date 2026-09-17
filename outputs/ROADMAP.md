@@ -12,7 +12,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 
 ## Phase 2 — Workflow depth
 
-- Persisted records and audit history (browser-local today, with reviewed JSON workspace backup/restore, a filterable audit trail, token-protected file-backed workspace and record-level API contracts, explicit UI Pull/Push sync, and a reviewed PostgreSQL starting schema in `db/schema.sql`).
+- Persisted records and audit history (browser-local today, with reviewed JSON workspace backup/restore, a filterable audit trail, token-protected workspace and record-level API contracts, explicit UI Pull/Push sync, an optional transactional PostgreSQL workspace-state adapter, and a reviewed normalized schema in `db/schema.sql`).
 - Signal inbox with acknowledgement, assignment, severity, and saved filters.
 - Lot genealogy and supplier scorecards.
 - Inspection entry and defect-code management (initial browser-local inspection slice implemented).

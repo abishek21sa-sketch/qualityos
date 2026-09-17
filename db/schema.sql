@@ -15,6 +15,13 @@ CREATE TABLE workspaces (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE workspace_state (
+  workspace_id uuid PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+  version integer NOT NULL DEFAULT 1,
+  state jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL UNIQUE,

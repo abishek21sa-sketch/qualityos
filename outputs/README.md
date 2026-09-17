@@ -37,6 +37,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - API connection testing now verifies the authenticated `/api/session` identity when a token is provided and shows the effective role; supplier identities remain read-only.
 - Workspace and record API responses expose ETags, and conditional writes return a conflict instead of silently overwriting a newer server revision.
 - The UI carries the latest API revision into conditional workspace and collection pushes and explains when a pull/review is required after a conflict.
+- The API can use the optional PostgreSQL workspace-state adapter when `DATABASE_URL` is configured; file persistence remains the default fallback until the normalized record tables are wired.
 
 ## Scope note
 

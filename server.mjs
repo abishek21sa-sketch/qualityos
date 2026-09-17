@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { createPostgresWorkspaceStore } from './db/postgres-store.mjs';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultStaticRoot = path.join(projectRoot, 'outputs');
@@ -10,6 +11,7 @@ const defaultWorkspaceFile = path.join(process.env.QUALITYOS_DATA_DIR || path.jo
 const apiVersion = '0.1.0';
 const maxWorkspaceBytes = 8 * 1024 * 1024;
 const maxRecordBytes = 1024 * 1024;
+const defaultDatabaseWorkspaceId = '00000000-0000-4000-8000-000000000001';
 const supportedRoles = new Set(['admin', 'quality_manager', 'quality_engineer', 'operator', 'supplier']);
 const mutationRoles = new Set(['admin', 'quality_manager', 'quality_engineer', 'operator']);
 
@@ -241,8 +243,18 @@ async function serveStatic(request, response, staticRoot, pathname) {
   }
 }
 
-export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, apiTokens = process.env.QUALITYOS_API_TOKENS, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN } = {}) {
+export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, apiTokens = process.env.QUALITYOS_API_TOKENS, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN, databaseUrl = process.env.DATABASE_URL, databaseWorkspaceId = process.env.QUALITYOS_DATABASE_WORKSPACE_ID || defaultDatabaseWorkspaceId, databaseWorkspaceSlug = process.env.QUALITYOS_DATABASE_WORKSPACE_SLUG || 'qualityos-default', databaseWorkspaceName = process.env.QUALITYOS_DATABASE_WORKSPACE_NAME || 'QualityOS' } = {}) {
   const authConfig = { apiToken, apiTokens: parseApiTokens(apiTokens) };
+  const postgresStore = databaseUrl ? createPostgresWorkspaceStore({ databaseUrl, workspaceId: databaseWorkspaceId, workspaceSlug: databaseWorkspaceSlug, workspaceName: databaseWorkspaceName }) : null;
+  const readStoredWorkspace = () => postgresStore ? postgresStore.read() : readWorkspace(workspaceFile);
+  const writeStoredWorkspace = async (payload, expectedEtag) => {
+    if (postgresStore) return postgresStore.write(payload, expectedEtag);
+    const current = await readWorkspace(workspaceFile);
+    const currentEtag = workspaceEtag(current);
+    if (!hasMatchingIfMatch({ headers: { 'if-match': expectedEtag } }, currentEtag)) return { conflict: true, workspace: current, etag: currentEtag };
+    const workspace = await writeWorkspace(workspaceFile, payload);
+    return { workspace, etag: workspaceEtag(workspace) };
+  };
   return http.createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || '/', 'http://localhost');
@@ -265,6 +277,7 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           service: 'qualityos-api',
           status: 'ok',
           apiVersion,
+          persistence: postgresStore ? 'postgres' : 'file',
           environment: process.env.NODE_ENV || 'development',
           commit: process.env.RENDER_GIT_COMMIT || null
         });
@@ -306,12 +319,12 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           return;
         }
         if (request.method === 'GET') {
-          const workspace = await readWorkspace(workspaceFile);
+          const workspace = await readStoredWorkspace();
           const etag = workspaceEtag(workspace);
           sendJson(response, 200, { ...workspace, etag }, { ETag: etag });
           return;
         }
-        const currentWorkspace = await readWorkspace(workspaceFile);
+        const currentWorkspace = await readStoredWorkspace();
         const currentEtag = workspaceEtag(currentWorkspace);
         if (!hasMatchingIfMatch(request, currentEtag)) {
           sendWorkspaceConflict(response, currentEtag);
@@ -337,9 +350,12 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           sendJson(response, 400, { error: 'Workspace payload must use a supported QualityOS format and version 1.' });
           return;
         }
-        const saved = await writeWorkspace(workspaceFile, payload);
-        const etag = workspaceEtag(saved);
-        sendJson(response, 200, { ...saved, etag }, { ETag: etag });
+        const result = await writeStoredWorkspace(payload, currentEtag);
+        if (result.conflict) {
+          sendWorkspaceConflict(response, result.etag);
+          return;
+        }
+        sendJson(response, 200, { ...result.workspace, etag: result.etag }, { ETag: result.etag });
         return;
       }
 
@@ -361,7 +377,7 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           sendJson(response, 403, { error: 'This API identity has read-only access.' });
           return;
         }
-        const workspace = await readWorkspace(workspaceFile);
+        const workspace = await readStoredWorkspace();
         const etag = workspaceEtag(workspace);
         const records = Array.isArray(workspace.data[field]) ? workspace.data[field] : [];
         const recordId = recordRoute[2] ? decodeURIComponent(recordRoute[2]) : null;
@@ -399,18 +415,18 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           const record = normalizeRecordPayload(payload);
           if (!record) { sendJson(response, 400, { error: 'Record must be a JSON object with an optional id up to 80 characters.' }); return; }
           if (findRecord(records, record.id)) { sendJson(response, 409, { error: 'A record with that id already exists.', collection, id: record.id }); return; }
-          const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: [record, ...records] } });
-          const savedEtag = workspaceEtag(saved);
-          sendJson(response, 201, { collection, record, updatedAt: saved.updatedAt, etag: savedEtag }, { ETag: savedEtag });
+          const result = await writeStoredWorkspace({ data: { ...workspace.data, [field]: [record, ...records] } }, etag);
+          if (result.conflict) { sendWorkspaceConflict(response, result.etag); return; }
+          sendJson(response, 201, { collection, record, updatedAt: result.workspace.updatedAt, etag: result.etag }, { ETag: result.etag });
           return;
         }
         const existing = findRecord(records, recordId);
         if (!existing) { sendJson(response, 404, { error: 'Record not found.', collection, id: recordId }); return; }
         if (!payload || typeof payload !== 'object' || Array.isArray(payload) || (payload.id !== undefined && payload.id !== recordId)) { sendJson(response, 400, { error: 'Patch must be an object and cannot change the record id.' }); return; }
         const updated = { ...existing, ...payload, id: recordId };
-        const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: records.map(record => record.id === recordId ? updated : record) } });
-        const savedEtag = workspaceEtag(saved);
-        sendJson(response, 200, { collection, record: updated, updatedAt: saved.updatedAt, etag: savedEtag }, { ETag: savedEtag });
+        const result = await writeStoredWorkspace({ data: { ...workspace.data, [field]: records.map(record => record.id === recordId ? updated : record) } }, etag);
+        if (result.conflict) { sendWorkspaceConflict(response, result.etag); return; }
+        sendJson(response, 200, { collection, record: updated, updatedAt: result.workspace.updatedAt, etag: result.etag }, { ETag: result.etag });
         return;
       }
 

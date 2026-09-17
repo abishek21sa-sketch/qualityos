@@ -8,6 +8,9 @@
     "test": "npm run check && npm run test:api",
     "start": "node server.mjs"
   },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
   "engines": {
     "node": ">=20"
   }
