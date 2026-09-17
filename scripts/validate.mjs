@@ -19,7 +19,9 @@ const requiredMarkers = [
   'containmentChecklist',
   'evidenceRequestModal',
   'capaModal',
-  'exportQualityPacket'
+  'exportQualityPacket',
+  'apiSyncModal',
+  'apiRequest'
 ];
 
 for (const marker of requiredMarkers) {

@@ -24,6 +24,8 @@ GET /api/workspace/overview  (compatibility alias)
 
 The overview response is still fixture-backed. The `/api/workspace` endpoint now supports token-protected `GET` and `PUT` operations against a versioned file-backed workspace, with an 8 MB request limit and atomic replacement writes. This makes the Render API deployment testable without pretending that record-level authorization, database transactions, or browser-local state are already multi-user or production-safe.
 
+The static UI's API sync panel uses explicit Pull and Push actions. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback until a full authenticated session and conflict strategy are added.
+
 ## Target production shape
 
 ```text

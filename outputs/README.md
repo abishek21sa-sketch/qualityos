@@ -31,6 +31,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
 - Evidence library includes a filterable audit trail with CSV export for browser-local decisions and handoffs.
 - Node API foundation exposes `/api/health`, the read-only `/api/quality/overview` contract, and token-protected `/api/workspace` read/write persistence for the migration path.
+- API sync panel lets an operator test the server, then explicitly pull or push the workspace while retaining browser-local fallback; API tokens stay session-only.
 
 ## Scope note
 
