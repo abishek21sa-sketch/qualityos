@@ -16,7 +16,7 @@ Deliver a credible, independently runnable quality-operations cockpit with a coh
 - Signal inbox with acknowledgement, assignment, severity, and saved filters.
 - Lot genealogy and supplier scorecards.
 - Inspection entry and defect-code management (initial browser-local inspection slice implemented).
-- Evidence upload, preview, and verification workflow (initial local review/reject/verify decision loop implemented).
+- Evidence upload, preview, and verification workflow (browser-local attachments now support image/PDF preview, download, and review decisions; production storage remains future work).
 - Configurable containment templates (initial browser-local extension workflow implemented).
 
 ## Phase 3 — Quality intelligence

@@ -11,6 +11,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - Inspection-result entry for a part and lot with measurement, result, defect code, notes, and a recent inspection log.
 - NCR-0264 quality-packet export with signal, containment, disposition, CAPA, and evidence context.
 - NCR-0264 quality-packet export also includes inspection records for the active lot.
+- NCR-0264 quality-packet export includes attached local evidence metadata and file content for the current browser workspace.
 - Browser-local 5-Why cause chain for NCR-0264, carried with the root-cause context.
 - Configurable browser-local containment checks that participate in completion progress, release gating, and packet export.
 - CAPA records with a browser-local lifecycle: Open, In progress, Effectiveness check, and Closed.
@@ -24,6 +25,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 - The visible, filtered signal queue can be exported as CSV with priority and recurrence context.
 - Evidence item and verified totals update from browser-local requests and verification actions.
 - Local evidence requests can be marked Needs review, Rejected, or Verified with persisted status.
+- Evidence library supports browser-local file attachments linked to an NCR, lot, or CAPA, with image/PDF preview, download, and review decisions.
 - Browser-local SPC rule setting for the burr-height UCL, shared by inspection warnings and review context.
 - Browser-local audit trail for key operator decisions and handoffs.
 - Workspace backup and restore moves browser-local quality records and configuration as a reviewed JSON file.
@@ -31,6 +33,6 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. It is inten
 
 ## Scope note
 
-The additional views are fixture-backed workflow shells for continued product exploration. Operator-created records persist in the browser only; they do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
+The additional views are fixture-backed workflow shells for continued product exploration. Operator-created records and small evidence attachments persist in the browser only; they do not persist to a server or replace a full QMS/MES. See [ROADMAP.md](ROADMAP.md) for the planned boundary and [DOMAIN_MODEL.md](DOMAIN_MODEL.md) for the core data contracts.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Pages, Vercel, and Render setup, and [ARCHITECTURE.md](ARCHITECTURE.md) for the browser-local-to-production migration plan.
