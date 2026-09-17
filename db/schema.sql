@@ -156,6 +156,7 @@ CREATE TABLE capas (
   effectiveness_current numeric(12, 4),
   effectiveness_outcome text,
   due_at date,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (workspace_id, capa_number)

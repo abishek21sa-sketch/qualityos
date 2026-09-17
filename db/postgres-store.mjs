@@ -63,6 +63,19 @@ function mapAction(row) {
   };
 }
 
+function mapCapa(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  const { __qualityos_order: ignoredOrder, ...record } = metadata;
+  return {
+    ...record,
+    id: row.capa_number,
+    method: row.method,
+    status: displayActionStatus(row.status),
+    problem: row.problem_statement,
+    due: record.due || (row.due_at ? new Date(row.due_at).toISOString().slice(0, 10) : 'No due date')
+  };
+}
+
 export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaultWorkspaceId, workspaceSlug = 'qualityos-default', workspaceName = 'QualityOS' } = {}) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required for the PostgreSQL workspace store.');
   if (!isUuid(workspaceId)) throw new Error('QUALITYOS_DATABASE_WORKSPACE_ID must be a valid UUID.');
@@ -104,6 +117,30 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
     }
   }
 
+  async function syncCapas(client, records) {
+    if (!Array.isArray(records)) return;
+    await client.query('DELETE FROM capas WHERE workspace_id = $1', [workspaceId]);
+    const seen = new Set();
+    for (const [index, source] of records.entries()) {
+      if (!source || typeof source !== 'object') continue;
+      const capaNumber = String(source.id || `CAPA-${index + 1}`).slice(0, 80);
+      if (seen.has(capaNumber)) continue;
+      seen.add(capaNumber);
+      const metadata = { ...source, id: capaNumber, __qualityos_order: index };
+      await client.query(`INSERT INTO capas
+        (workspace_id, capa_number, method, status, problem_statement, due_at, metadata)
+        VALUES ($1, $2, $3, $4::record_status, $5, $6, $7::jsonb)`, [
+        workspaceId,
+        capaNumber,
+        String(source.method || 'CAPA').slice(0, 40),
+        actionStatus(source.status),
+        String(source.problem || source.problemStatement || 'Unspecified quality problem').slice(0, 4000),
+        isoDate(source.due),
+        JSON.stringify(metadata)
+      ]);
+    }
+  }
+
   async function read() {
     const pool = await getPool();
     const result = await pool.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1', [workspaceId]);
@@ -112,6 +149,10 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
       FROM corrective_actions WHERE workspace_id = $1
       ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, updated_at DESC`, [workspaceId]);
     if (actions.rows.length) workspace.data = { ...workspace.data, actions: actions.rows.map(mapAction) };
+    const capas = await pool.query(`SELECT capa_number, method, status, problem_statement, due_at, metadata
+      FROM capas WHERE workspace_id = $1
+      ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, updated_at DESC`, [workspaceId]);
+    if (capas.rows.length) workspace.data = { ...workspace.data, capas: capas.rows.map(mapCapa) };
     return workspace;
   }
 
@@ -130,6 +171,7 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
       }
       const next = { format: workspaceFormat, version: workspaceVersion, updatedAt: new Date().toISOString(), data: payload.data };
       await syncActions(client, next.data.actions);
+      await syncCapas(client, next.data.capas);
       await client.query(`INSERT INTO workspace_state (workspace_id, version, state, updated_at)
         VALUES ($1, $2, $3::jsonb, $4)
         ON CONFLICT (workspace_id) DO UPDATE SET version = EXCLUDED.version, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at`, [workspaceId, next.version, JSON.stringify(next.data), next.updatedAt]);
