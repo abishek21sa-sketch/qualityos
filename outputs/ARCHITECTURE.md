@@ -30,6 +30,8 @@ The overview response is still fixture-backed. The `/api/workspace` endpoint sup
 
 The static UI's API sync panel uses explicit workspace Pull/Push actions plus collection-level Pull/Push actions for the four record routes. Collection Pull replaces only the selected local collection; collection Push reads remote IDs and upserts local records one at a time. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback until a full authenticated session, conflict strategy, and database adapter are added.
 
+The interim auth boundary accepts the legacy `QUALITYOS_API_TOKEN` as an admin-compatible token or a JSON `QUALITYOS_API_TOKENS` list of `{ token, subject, role, workspaceId }` identities. `GET /api/session` reports the non-secret identity and effective read/mutate permission. This is environment-managed access control, not a replacement for login, OAuth, session rotation, or database-backed workspace membership.
+
 ## Target production shape
 
 ```text

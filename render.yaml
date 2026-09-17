@@ -11,6 +11,8 @@ services:
         value: /var/data
       - key: QUALITYOS_API_TOKEN
         sync: false
+      - key: QUALITYOS_API_TOKENS
+        sync: false
       - key: QUALITYOS_ALLOWED_ORIGIN
         sync: false
     disk:

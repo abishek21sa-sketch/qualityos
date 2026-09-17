@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createServer } from '../server.mjs';
 
 const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'qualityos-api-'));
-const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token' });
+const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token', apiTokens: [{ token: 'supplier-token', subject: 'supplier-portal', role: 'supplier', workspaceId: 'apex-motion-plant-04' }] });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;
@@ -29,6 +29,23 @@ try {
   const unauthorizedResponse = await fetch(`${baseUrl}/api/workspace`);
   assert.equal(unauthorizedResponse.status, 401);
 
+  const sessionResponse = await fetch(`${baseUrl}/api/session`, { headers: { Authorization: 'Bearer test-token' } });
+  assert.equal(sessionResponse.status, 200);
+  const session = await sessionResponse.json();
+  assert.equal(session.subject, 'legacy-api-token');
+  assert.equal(session.role, 'admin');
+  assert.equal(session.permissions.mutate, true);
+
+  const supplierSessionResponse = await fetch(`${baseUrl}/api/session`, { headers: { Authorization: 'Bearer supplier-token' } });
+  assert.equal(supplierSessionResponse.status, 200);
+  const supplierSession = await supplierSessionResponse.json();
+  assert.equal(supplierSession.subject, 'supplier-portal');
+  assert.equal(supplierSession.role, 'supplier');
+  assert.equal(supplierSession.permissions.mutate, false);
+
+  const supplierWorkspaceReadResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer supplier-token' } });
+  assert.equal(supplierWorkspaceReadResponse.status, 200);
+
   const initialWorkspaceResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal(initialWorkspaceResponse.status, 200);
   const initialWorkspace = await initialWorkspaceResponse.json();
@@ -50,6 +67,12 @@ try {
   const actionListResponse = await fetch(`${baseUrl}/api/records/actions`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal(actionListResponse.status, 200);
   assert.equal((await actionListResponse.json()).items[0].id, 'CA-TEST');
+
+  const supplierActionListResponse = await fetch(`${baseUrl}/api/records/actions`, { headers: { Authorization: 'Bearer supplier-token' } });
+  assert.equal(supplierActionListResponse.status, 200);
+
+  const supplierCreateResponse = await fetch(`${baseUrl}/api/records/actions`, { method: 'POST', headers: { Authorization: 'Bearer supplier-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'CA-SUPPLIER-1', title: 'Should be denied' }) });
+  assert.equal(supplierCreateResponse.status, 403);
 
   const createRecordResponse = await fetch(`${baseUrl}/api/records/actions`, { method: 'POST', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'CA-API-1', title: 'Verify API record path', status: 'Open' }) });
   assert.equal(createRecordResponse.status, 201);

@@ -24,6 +24,7 @@ const requiredMarkers = [
   'exportQualityPacket',
   'apiSyncModal',
   'apiRequest',
+  '/api/session',
   'apiRecordCollection',
   'pullApiRecords',
   'pushApiRecords'

@@ -10,6 +10,8 @@ const defaultWorkspaceFile = path.join(process.env.QUALITYOS_DATA_DIR || path.jo
 const apiVersion = '0.1.0';
 const maxWorkspaceBytes = 8 * 1024 * 1024;
 const maxRecordBytes = 1024 * 1024;
+const supportedRoles = new Set(['admin', 'quality_manager', 'quality_engineer', 'operator', 'supplier']);
+const mutationRoles = new Set(['admin', 'quality_manager', 'quality_engineer', 'operator']);
 
 const recordCollections = {
   actions: 'actions',
@@ -34,7 +36,7 @@ const overviewPayload = {
   },
   contracts: {
     overview: 'read-only migration contract',
-    mutations: 'authenticated workspace endpoint',
+    mutations: 'authenticated workspace and record endpoints',
     persistence: 'file-backed prototype'
   }
 };
@@ -97,14 +99,33 @@ async function writeWorkspace(workspaceFile, payload) {
   return next;
 }
 
-function authenticate(request, expectedToken) {
-  if (!expectedToken) return { ok: false, status: 503, error: 'Workspace API token is not configured.' };
+function parseApiTokens(value) {
+  let entries = value;
+  if (typeof entries === 'string') {
+    try { entries = JSON.parse(entries); } catch { return []; }
+  }
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(entry => entry && typeof entry.token === 'string' && entry.token.length > 0 && supportedRoles.has(entry.role)).map(entry => ({
+    token: entry.token,
+    subject: typeof entry.subject === 'string' && entry.subject.length > 0 ? entry.subject.slice(0, 80) : 'api-user',
+    role: entry.role,
+    workspaceId: typeof entry.workspaceId === 'string' && entry.workspaceId.length > 0 ? entry.workspaceId.slice(0, 120) : null
+  }));
+}
+
+function authenticate(request, authConfig) {
+  const candidates = [];
+  if (authConfig.apiToken) candidates.push({ token: authConfig.apiToken, subject: 'legacy-api-token', role: 'admin', workspaceId: null });
+  candidates.push(...authConfig.apiTokens);
+  if (!candidates.length) return { ok: false, status: 503, error: 'Workspace API authentication is not configured.' };
   const authorization = String(request.headers.authorization || '');
   const receivedToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-  const expected = Buffer.from(String(expectedToken));
   const received = Buffer.from(receivedToken);
-  const valid = expected.length === received.length && timingSafeEqual(expected, received);
-  return valid ? { ok: true } : { ok: false, status: 401, error: 'A valid Bearer token is required.' };
+  for (const candidate of candidates) {
+    const expected = Buffer.from(candidate.token);
+    if (expected.length === received.length && timingSafeEqual(expected, received)) return { ok: true, subject: candidate.subject, role: candidate.role, workspaceId: candidate.workspaceId };
+  }
+  return { ok: false, status: 401, error: 'A valid Bearer token is required.' };
 }
 
 function readRequestBody(request, limit) {
@@ -205,7 +226,8 @@ async function serveStatic(request, response, staticRoot, pathname) {
   }
 }
 
-export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN } = {}) {
+export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = defaultWorkspaceFile, apiToken = process.env.QUALITYOS_API_TOKEN, apiTokens = process.env.QUALITYOS_API_TOKENS, allowedOrigin = process.env.QUALITYOS_ALLOWED_ORIGIN } = {}) {
+  const authConfig = { apiToken, apiTokens: parseApiTokens(apiTokens) };
   return http.createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || '/', 'http://localhost');
@@ -213,7 +235,7 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
       const requestOrigin = String(request.headers.origin || '');
       if (isApiRequest && allowedOrigin && (allowedOrigin === '*' || requestOrigin === allowedOrigin)) {
         response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-        response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept');
         response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, OPTIONS');
         response.setHeader('Vary', 'Origin');
       }
@@ -239,11 +261,33 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
         return;
       }
 
-      if (requestUrl.pathname === '/api/workspace' && ['GET', 'PUT'].includes(request.method)) {
-        const authentication = authenticate(request, apiToken);
+      if (requestUrl.pathname === '/api/session' && request.method === 'GET') {
+        const authentication = authenticate(request, authConfig);
         if (!authentication.ok) {
           response.setHeader('WWW-Authenticate', 'Bearer');
           sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        sendJson(response, 200, {
+          authenticated: true,
+          subject: authentication.subject,
+          role: authentication.role,
+          workspaceId: authentication.workspaceId,
+          permissions: { read: true, mutate: mutationRoles.has(authentication.role) },
+          apiVersion
+        });
+        return;
+      }
+
+      if (requestUrl.pathname === '/api/workspace' && ['GET', 'PUT'].includes(request.method)) {
+        const authentication = authenticate(request, authConfig);
+        if (!authentication.ok) {
+          response.setHeader('WWW-Authenticate', 'Bearer');
+          sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        if (request.method === 'PUT' && !mutationRoles.has(authentication.role)) {
+          sendJson(response, 403, { error: 'This API identity has read-only access.' });
           return;
         }
         if (request.method === 'GET') {
@@ -282,10 +326,14 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           sendJson(response, 404, { error: 'Unsupported record collection.', collection });
           return;
         }
-        const authentication = authenticate(request, apiToken);
+        const authentication = authenticate(request, authConfig);
         if (!authentication.ok) {
           response.setHeader('WWW-Authenticate', 'Bearer');
           sendJson(response, authentication.status, { error: authentication.error });
+          return;
+        }
+        if (request.method !== 'GET' && !mutationRoles.has(authentication.role)) {
+          sendJson(response, 403, { error: 'This API identity has read-only access.' });
           return;
         }
         const workspace = await readWorkspace(workspaceFile);
