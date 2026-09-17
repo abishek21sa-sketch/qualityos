@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "scripts": {
     "check": "node scripts/validate.mjs",
+    "check:server": "node --check server.mjs && node --check db/postgres-store.mjs",
     "test:api": "node scripts/test-server.mjs",
-    "test": "npm run check && npm run test:api",
+    "test": "npm run check && npm run check:server && npm run test:api",
     "start": "node server.mjs"
   },
   "dependencies": {

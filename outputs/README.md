@@ -38,6 +38,7 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - Workspace and record API responses expose ETags, and conditional writes return a conflict instead of silently overwriting a newer server revision.
 - The UI carries the latest API revision into conditional workspace and collection pushes and explains when a pull/review is required after a conflict.
 - The API can use the optional PostgreSQL workspace-state adapter when `DATABASE_URL` is configured; file persistence remains the default fallback until the normalized record tables are wired.
+- PostgreSQL mode now synchronizes corrective actions into `corrective_actions` transactionally while retaining the browser record shape; the remaining collections are intentionally staged for later foreign-key migrations.
 
 ## Scope note
 

@@ -137,6 +137,7 @@ CREATE TABLE corrective_actions (
   status record_status NOT NULL DEFAULT 'open',
   due_at date,
   acceptance_criteria text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (workspace_id, action_number)

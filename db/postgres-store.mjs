@@ -28,6 +28,41 @@ function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function actionStatus(value) {
+  const normalized = String(value || '').toLowerCase().replace(/\s+/g, '_');
+  return ['open', 'in_progress', 'effectiveness_check', 'closed'].includes(normalized) ? normalized : 'open';
+}
+
+function actionPriority(value) {
+  const normalized = String(value || '').toLowerCase();
+  return ['high', 'medium', 'low'].includes(normalized) ? normalized : 'medium';
+}
+
+function isoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) ? String(value) : null;
+}
+
+function displayActionStatus(value) {
+  return { open: 'Open', in_progress: 'In progress', effectiveness_check: 'Effectiveness check', closed: 'Closed' }[value] || 'Open';
+}
+
+function displayActionPriority(value) {
+  return String(value || 'medium').replace(/^./, letter => letter.toUpperCase());
+}
+
+function mapAction(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  const { __qualityos_order: ignoredOrder, ...record } = metadata;
+  return {
+    ...record,
+    id: row.action_number,
+    title: row.title,
+    priority: displayActionPriority(row.priority),
+    status: displayActionStatus(row.status),
+    due: record.due || (row.due_at ? new Date(row.due_at).toISOString().slice(0, 10) : 'No due date')
+  };
+}
+
 export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaultWorkspaceId, workspaceSlug = 'qualityos-default', workspaceName = 'QualityOS' } = {}) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required for the PostgreSQL workspace store.');
   if (!isUuid(workspaceId)) throw new Error('QUALITYOS_DATABASE_WORKSPACE_ID must be a valid UUID.');
@@ -44,10 +79,40 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
     await client.query('INSERT INTO workspaces (id, slug, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING', [workspaceId, workspaceSlug, workspaceName]);
   }
 
+  async function syncActions(client, records) {
+    if (!Array.isArray(records)) return;
+    await client.query('DELETE FROM corrective_actions WHERE workspace_id = $1', [workspaceId]);
+    const seen = new Set();
+    for (const [index, source] of records.entries()) {
+      if (!source || typeof source !== 'object') continue;
+      const actionNumber = String(source.id || `API-${index + 1}`).slice(0, 80);
+      if (seen.has(actionNumber)) continue;
+      seen.add(actionNumber);
+      const metadata = { ...source, id: actionNumber, __qualityos_order: index };
+      await client.query(`INSERT INTO corrective_actions
+        (workspace_id, action_number, title, priority, status, due_at, acceptance_criteria, metadata)
+        VALUES ($1, $2, $3, $4, $5::record_status, $6, $7, $8::jsonb)`, [
+        workspaceId,
+        actionNumber,
+        String(source.title || 'Untitled corrective action').slice(0, 240),
+        actionPriority(source.priority),
+        actionStatus(source.status),
+        isoDate(source.due),
+        String(source.acceptanceCriteria || source.note || '').slice(0, 4000),
+        JSON.stringify(metadata)
+      ]);
+    }
+  }
+
   async function read() {
     const pool = await getPool();
     const result = await pool.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1', [workspaceId]);
-    return asWorkspace(result.rows[0]);
+    const workspace = asWorkspace(result.rows[0]);
+    const actions = await pool.query(`SELECT action_number, title, priority, status, due_at, metadata
+      FROM corrective_actions WHERE workspace_id = $1
+      ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, updated_at DESC`, [workspaceId]);
+    if (actions.rows.length) workspace.data = { ...workspace.data, actions: actions.rows.map(mapAction) };
+    return workspace;
   }
 
   async function write(payload, expectedEtag = '') {
@@ -64,6 +129,7 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
         return { conflict: true, workspace: current, etag: currentEtag };
       }
       const next = { format: workspaceFormat, version: workspaceVersion, updatedAt: new Date().toISOString(), data: payload.data };
+      await syncActions(client, next.data.actions);
       await client.query(`INSERT INTO workspace_state (workspace_id, version, state, updated_at)
         VALUES ($1, $2, $3::jsonb, $4)
         ON CONFLICT (workspace_id) DO UPDATE SET version = EXCLUDED.version, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at`, [workspaceId, next.version, JSON.stringify(next.data), next.updatedAt]);
