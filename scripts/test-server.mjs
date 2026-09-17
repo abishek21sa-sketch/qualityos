@@ -50,6 +50,7 @@ try {
   assert.equal(initialWorkspaceResponse.status, 200);
   const initialWorkspace = await initialWorkspaceResponse.json();
   assert.equal(initialWorkspace.format, 'QualityOS server workspace');
+  assert.match(initialWorkspaceResponse.headers.get('etag') || '', /^"[a-f0-9]{64}"$/);
 
   const invalidWorkspaceResponse = await fetch(`${baseUrl}/api/workspace`, { method: 'PUT', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ format: 'Unsupported', version: 1, data: {} }) });
   assert.equal(invalidWorkspaceResponse.status, 400);
@@ -60,13 +61,20 @@ try {
   const savedWorkspace = await writeResponse.json();
   assert.equal(savedWorkspace.data.actions[0].id, 'CA-TEST');
   assert.match(savedWorkspace.updatedAt, /^20/);
+  assert.notEqual(savedWorkspace.etag, initialWorkspace.etag);
+
+  const staleWorkspaceResponse = await fetch(`${baseUrl}/api/workspace`, { method: 'PUT', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json', 'If-Match': initialWorkspace.etag }, body: JSON.stringify(workspacePayload) });
+  assert.equal(staleWorkspaceResponse.status, 409);
+  assert.match((await staleWorkspaceResponse.json()).error, /changed since/);
 
   const readResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal((await readResponse.json()).data.auditFilter, 'All events');
 
   const actionListResponse = await fetch(`${baseUrl}/api/records/actions`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal(actionListResponse.status, 200);
-  assert.equal((await actionListResponse.json()).items[0].id, 'CA-TEST');
+  const actionList = await actionListResponse.json();
+  assert.equal(actionList.items[0].id, 'CA-TEST');
+  assert.equal(actionList.etag, savedWorkspace.etag);
 
   const supplierActionListResponse = await fetch(`${baseUrl}/api/records/actions`, { headers: { Authorization: 'Bearer supplier-token' } });
   assert.equal(supplierActionListResponse.status, 200);
@@ -74,13 +82,19 @@ try {
   const supplierCreateResponse = await fetch(`${baseUrl}/api/records/actions`, { method: 'POST', headers: { Authorization: 'Bearer supplier-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'CA-SUPPLIER-1', title: 'Should be denied' }) });
   assert.equal(supplierCreateResponse.status, 403);
 
-  const createRecordResponse = await fetch(`${baseUrl}/api/records/actions`, { method: 'POST', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'CA-API-1', title: 'Verify API record path', status: 'Open' }) });
+  const createRecordResponse = await fetch(`${baseUrl}/api/records/actions`, { method: 'POST', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json', 'If-Match': actionList.etag }, body: JSON.stringify({ id: 'CA-API-1', title: 'Verify API record path', status: 'Open' }) });
   assert.equal(createRecordResponse.status, 201);
-  assert.equal((await createRecordResponse.json()).record.id, 'CA-API-1');
+  const createdRecord = await createRecordResponse.json();
+  assert.equal(createdRecord.record.id, 'CA-API-1');
+  assert.match(createdRecord.etag, /^"[a-f0-9]{64}"$/);
 
-  const patchRecordResponse = await fetch(`${baseUrl}/api/records/actions/CA-API-1`, { method: 'PATCH', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'In progress' }) });
+  const patchRecordResponse = await fetch(`${baseUrl}/api/records/actions/CA-API-1`, { method: 'PATCH', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json', 'If-Match': createdRecord.etag }, body: JSON.stringify({ status: 'In progress' }) });
   assert.equal(patchRecordResponse.status, 200);
-  assert.equal((await patchRecordResponse.json()).record.status, 'In progress');
+  const patchedRecord = await patchRecordResponse.json();
+  assert.equal(patchedRecord.record.status, 'In progress');
+
+  const staleRecordResponse = await fetch(`${baseUrl}/api/records/actions/CA-API-1`, { method: 'PATCH', headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json', 'If-Match': createdRecord.etag }, body: JSON.stringify({ status: 'Closed' }) });
+  assert.equal(staleRecordResponse.status, 409);
 
   const readRecordResponse = await fetch(`${baseUrl}/api/records/actions/CA-API-1`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal((await readRecordResponse.json()).record.status, 'In progress');

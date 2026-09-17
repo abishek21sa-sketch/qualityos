@@ -27,7 +27,9 @@ const requiredMarkers = [
   '/api/session',
   'apiRecordCollection',
   'pullApiRecords',
-  'pushApiRecords'
+  'pushApiRecords',
+  'If-Match',
+  'apiWorkspaceEtag'
 ];
 
 for (const marker of requiredMarkers) {

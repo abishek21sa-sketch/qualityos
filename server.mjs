@@ -1,7 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -49,12 +49,13 @@ const contentTypes = {
   '.svg': 'image/svg+xml'
 };
 
-function sendJson(response, status, payload) {
+function sendJson(response, status, payload, headers = {}) {
   const body = JSON.stringify(payload);
   response.writeHead(status, {
     'Cache-Control': 'no-store',
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body)
+    'Content-Length': Buffer.byteLength(body),
+    ...headers
   });
   response.end(body);
 }
@@ -97,6 +98,20 @@ async function writeWorkspace(workspaceFile, payload) {
   await fs.writeFile(temporaryFile, JSON.stringify(next, null, 2), 'utf8');
   await fs.rename(temporaryFile, workspaceFile);
   return next;
+}
+
+function workspaceEtag(workspace) {
+  const digest = createHash('sha256').update(JSON.stringify(workspace)).digest('hex');
+  return `"${digest}"`;
+}
+
+function hasMatchingIfMatch(request, currentEtag) {
+  const expected = String(request.headers['if-match'] || '').trim();
+  return !expected || expected === '*' || expected === currentEtag;
+}
+
+function sendWorkspaceConflict(response, currentEtag) {
+  sendJson(response, 409, { error: 'Workspace changed since this client last read it. Pull the latest state before retrying.', etag: currentEtag }, { ETag: currentEtag });
 }
 
 function parseApiTokens(value) {
@@ -291,7 +306,15 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           return;
         }
         if (request.method === 'GET') {
-          sendJson(response, 200, await readWorkspace(workspaceFile));
+          const workspace = await readWorkspace(workspaceFile);
+          const etag = workspaceEtag(workspace);
+          sendJson(response, 200, { ...workspace, etag }, { ETag: etag });
+          return;
+        }
+        const currentWorkspace = await readWorkspace(workspaceFile);
+        const currentEtag = workspaceEtag(currentWorkspace);
+        if (!hasMatchingIfMatch(request, currentEtag)) {
+          sendWorkspaceConflict(response, currentEtag);
           return;
         }
         const declaredLength = Number(request.headers['content-length']);
@@ -314,7 +337,9 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           sendJson(response, 400, { error: 'Workspace payload must use a supported QualityOS format and version 1.' });
           return;
         }
-        sendJson(response, 200, await writeWorkspace(workspaceFile, payload));
+        const saved = await writeWorkspace(workspaceFile, payload);
+        const etag = workspaceEtag(saved);
+        sendJson(response, 200, { ...saved, etag }, { ETag: etag });
         return;
       }
 
@@ -337,16 +362,21 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           return;
         }
         const workspace = await readWorkspace(workspaceFile);
+        const etag = workspaceEtag(workspace);
         const records = Array.isArray(workspace.data[field]) ? workspace.data[field] : [];
         const recordId = recordRoute[2] ? decodeURIComponent(recordRoute[2]) : null;
         if (request.method === 'GET') {
           if (recordId) {
             const record = findRecord(records, recordId);
             if (!record) { sendJson(response, 404, { error: 'Record not found.', collection, id: recordId }); return; }
-            sendJson(response, 200, { collection, record, updatedAt: workspace.updatedAt });
+            sendJson(response, 200, { collection, record, updatedAt: workspace.updatedAt, etag }, { ETag: etag });
           } else {
-            sendJson(response, 200, { collection, items: records, updatedAt: workspace.updatedAt });
+            sendJson(response, 200, { collection, items: records, updatedAt: workspace.updatedAt, etag }, { ETag: etag });
           }
+          return;
+        }
+        if (!hasMatchingIfMatch(request, etag)) {
+          sendWorkspaceConflict(response, etag);
           return;
         }
         if (request.method === 'POST' && recordId) {
@@ -370,7 +400,8 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
           if (!record) { sendJson(response, 400, { error: 'Record must be a JSON object with an optional id up to 80 characters.' }); return; }
           if (findRecord(records, record.id)) { sendJson(response, 409, { error: 'A record with that id already exists.', collection, id: record.id }); return; }
           const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: [record, ...records] } });
-          sendJson(response, 201, { collection, record, updatedAt: saved.updatedAt });
+          const savedEtag = workspaceEtag(saved);
+          sendJson(response, 201, { collection, record, updatedAt: saved.updatedAt, etag: savedEtag }, { ETag: savedEtag });
           return;
         }
         const existing = findRecord(records, recordId);
@@ -378,7 +409,8 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
         if (!payload || typeof payload !== 'object' || Array.isArray(payload) || (payload.id !== undefined && payload.id !== recordId)) { sendJson(response, 400, { error: 'Patch must be an object and cannot change the record id.' }); return; }
         const updated = { ...existing, ...payload, id: recordId };
         const saved = await writeWorkspace(workspaceFile, { data: { ...workspace.data, [field]: records.map(record => record.id === recordId ? updated : record) } });
-        sendJson(response, 200, { collection, record: updated, updatedAt: saved.updatedAt });
+        const savedEtag = workspaceEtag(saved);
+        sendJson(response, 200, { collection, record: updated, updatedAt: saved.updatedAt, etag: savedEtag }, { ETag: savedEtag });
         return;
       }
 

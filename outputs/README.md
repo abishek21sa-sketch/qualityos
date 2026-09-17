@@ -35,6 +35,8 @@ QualityOS is a lightweight manufacturing quality-operations cockpit. The static 
 - API sync panel lets an operator test the server, then explicitly pull or push the workspace while retaining browser-local fallback; API tokens stay session-only.
 - API sync also supports an explicit collection-level pull or item-by-item upsert for actions, evidence requests, inspections, and CAPAs, with counts and audit events after each successful operation.
 - API connection testing now verifies the authenticated `/api/session` identity when a token is provided and shows the effective role; supplier identities remain read-only.
+- Workspace and record API responses expose ETags, and conditional writes return a conflict instead of silently overwriting a newer server revision.
+- The UI carries the latest API revision into conditional workspace and collection pushes and explains when a pull/review is required after a conflict.
 
 ## Scope note
 

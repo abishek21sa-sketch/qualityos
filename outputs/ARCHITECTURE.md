@@ -32,6 +32,8 @@ The static UI's API sync panel uses explicit workspace Pull/Push actions plus co
 
 The interim auth boundary accepts the legacy `QUALITYOS_API_TOKEN` as an admin-compatible token or a JSON `QUALITYOS_API_TOKENS` list of `{ token, subject, role, workspaceId }` identities. `GET /api/session` reports the non-secret identity and effective read/mutate permission. This is environment-managed access control, not a replacement for login, OAuth, session rotation, or database-backed workspace membership.
 
+Workspace and record responses include an HTTP `ETag` and JSON `etag` value. Mutations accept an optional `If-Match`; a stale tag returns `409` with the current tag, giving the browser a safe pull-and-review recovery path instead of silent last-write-wins behavior.
+
 ## Target production shape
 
 ```text
