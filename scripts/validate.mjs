@@ -4,6 +4,8 @@ import vm from 'node:vm';
 const html = fs.readFileSync('outputs/index.html', 'utf8');
 const server = fs.readFileSync('server.mjs', 'utf8');
 const postgresStore = fs.readFileSync('db/postgres-store.mjs', 'utf8');
+const migrationRunner = fs.readFileSync('scripts/migrate-postgres.mjs', 'utf8');
+const evidenceMigration = fs.readFileSync('db/migrations/002_evidence_metadata.sql', 'utf8');
 const scriptStart = html.indexOf('<script>') + '<script>'.length;
 const scriptEnd = html.indexOf('</script>', scriptStart);
 
@@ -48,5 +50,10 @@ for (const marker of ['recordRoute', 'recordCollections', 'hasWorkspaceAccess', 
 for (const marker of ['createPostgresWorkspaceStore', 'workspace_state', 'corrective_actions', 'syncActions', 'syncCapas', 'syncInspections', 'syncEvidence', 'capas', 'inspections', 'evidence', 'FOR UPDATE']) {
   if (!postgresStore.includes(marker)) throw new Error(`PostgreSQL adapter marker missing: ${marker}`);
 }
+
+for (const marker of ['qualityos_schema_migrations', 'DATABASE_URL', 'BEGIN', 'COMMIT']) {
+  if (!migrationRunner.includes(marker)) throw new Error(`Migration runner marker missing: ${marker}`);
+}
+if (!evidenceMigration.includes('ADD COLUMN IF NOT EXISTS metadata')) throw new Error('Evidence migration marker missing.');
 
 console.log(`QualityOS validation passed (${html.length} HTML bytes).`);

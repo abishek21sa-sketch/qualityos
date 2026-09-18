@@ -3,7 +3,7 @@ services:
     name: qualityos-api
     env: node
     buildCommand: npm install --omit=dev
-    startCommand: npm start
+    startCommand: npm run db:migrate && npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
