@@ -32,7 +32,9 @@ const requiredMarkers = [
   'pullApiRecords',
   'pushApiRecords',
   'If-Match',
-  'apiWorkspaceEtag'
+  'apiWorkspaceEtag',
+  'apiConflictModal',
+  'recoverApiConflict'
 ];
 
 for (const marker of requiredMarkers) {
