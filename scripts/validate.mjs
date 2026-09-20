@@ -53,7 +53,7 @@ for (const marker of ['createPostgresWorkspaceStore', 'workspace_state', 'correc
   if (!postgresStore.includes(marker)) throw new Error(`PostgreSQL adapter marker missing: ${marker}`);
 }
 
-for (const marker of ['qualityos_schema_migrations', 'DATABASE_URL', 'BEGIN', 'COMMIT']) {
+for (const marker of ['qualityos_schema_migrations', 'DATABASE_URL', 'baselineSchemaPath', 'to_regclass', 'pg_advisory_lock', 'BEGIN', 'COMMIT']) {
   if (!migrationRunner.includes(marker)) throw new Error(`Migration runner marker missing: ${marker}`);
 }
 if (!evidenceMigration.includes('ADD COLUMN IF NOT EXISTS metadata')) throw new Error('Evidence migration marker missing.');
