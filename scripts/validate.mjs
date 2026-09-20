@@ -44,6 +44,9 @@ const requiredMarkers = [
 for (const marker of requiredMarkers) {
   if (!html.includes(marker)) throw new Error(`Required marker missing: ${marker}`);
 }
+for (const marker of ['auditPageSize', 'matchingAuditEvents', 'loadMoreAuditEvents', 'Export filtered CSV']) {
+  if (!html.includes(marker)) throw new Error(`Audit history marker missing: ${marker}`);
+}
 
 for (const marker of ['CREATE TABLE workspaces', 'CREATE TABLE inspections', 'CREATE TABLE audit_events', 'source_key text', 'audit_events_workspace_source_key_uq']) {
   if (!schema.includes(marker)) throw new Error(`Database schema marker missing: ${marker}`);

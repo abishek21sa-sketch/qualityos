@@ -426,6 +426,8 @@
     function loadAuditFilter() { try { return localStorage.getItem('qualityos-audit-filter') || 'All events'; } catch (error) { return 'All events'; } }
     function saveAuditFilter() { try { localStorage.setItem('qualityos-audit-filter', auditFilter); } catch (error) { /* local file storage can be unavailable */ } }
     let auditFilter = loadAuditFilter();
+    const auditPageSize = 12;
+    let auditVisibleCount = auditPageSize;
     function loadCapas() { try { const saved = JSON.parse(localStorage.getItem('qualityos-capas') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
     function saveCapas() { try { localStorage.setItem('qualityos-capas', JSON.stringify(capas)); } catch (error) { /* local file storage can be unavailable */ } }
     let capas = loadCapas();
@@ -840,9 +842,53 @@
     updateRiskAssessmentUi();
     document.getElementById('saveRiskAssessment')?.addEventListener('click', () => { riskAssessment = { severity: Number(document.getElementById('riskSeverity').value), occurrence: Number(document.getElementById('riskOccurrence').value), detection: Number(document.getElementById('riskDetection').value), rationale: document.getElementById('riskRationale').value.trim() }; saveRiskAssessment(); const rpn = riskAssessmentRpn(); signalPriorityScores['SIG-0418'] = Math.min(10, rpn / 40); document.querySelectorAll('[data-signal-priority]').forEach(pill => { const row = pill.closest('tr'); if (row?.querySelector('.record-code')?.textContent.trim() === 'SIG-0418') { pill.textContent = `${signalPriorityScores['SIG-0418'].toFixed(1)} / 10`; pill.className = `risk ${signalPriorityClass(signalPriorityScores['SIG-0418'])}`; } }); if (currentView === 'signals') sortSignalRows(); recordEvent('⚖', riskAssessmentBand(rpn).tone, 'Risk assessment updated', `NCR-0264 · RPN ${rpn}`); showToast(`Risk assessment saved at RPN ${rpn}.`); });
     function auditEventCategory(event) { return event?.tone === 'red' ? 'Exceptions' : event?.tone === 'green' ? 'Verification' : 'Decisions'; }
-    function auditEventsForFilter() { return activityEvents.filter(event => auditFilter === 'All events' || auditEventCategory(event) === auditFilter).slice(0, 12); }
-    function downloadAuditTrail() { const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const rows = auditEventsForFilter(); const csv = [['Recorded', 'Category', 'Event', 'Detail'], ...rows.map(event => [event.time, auditEventCategory(event), event.title, event.detail])].map(row => row.map(csvCell).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-audit-trail.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); recordEvent('⇩', 'blue', 'Audit trail exported', `${rows.length} ${auditFilter.toLowerCase()}`); showToast(`${rows.length} audit events exported as CSV.`); }
-    function renderAuditTrail() { const root = mainContent.querySelector('.phase-view'); if (!root) return; let card = document.getElementById('auditTrailCard'); if (!card) { card = document.createElement('div'); card.id = 'auditTrailCard'; card.className = 'card data-card'; card.innerHTML = '<div class="card-header"><div><div class="card-title">Audit trail</div><div class="card-subtitle">Browser-local decisions and handoffs captured by this workspace.</div></div><div class="inspection-controls"><select class="filter-select" id="auditTrailFilter" aria-label="Filter audit events"><option>All events</option><option>Exceptions</option><option>Verification</option><option>Decisions</option></select><button class="secondary-button" type="button" id="exportAuditTrail">Export CSV</button></div></div><div id="auditTrailList" aria-live="polite"></div>'; root.appendChild(card); const filter = card.querySelector('#auditTrailFilter'); filter.addEventListener('change', () => { auditFilter = filter.value; saveAuditFilter(); renderAuditTrail(); showToast(auditFilter === 'All events' ? 'Showing all audit events.' : `Filtered to ${auditFilter.toLowerCase()}.`); }); card.querySelector('#exportAuditTrail').addEventListener('click', downloadAuditTrail); } const filter = card.querySelector('#auditTrailFilter'); if (![...filter.options].some(option => option.value === auditFilter)) { auditFilter = 'All events'; filter.value = auditFilter; saveAuditFilter(); } else filter.value = auditFilter; const events = auditEventsForFilter(); const list = card.querySelector('#auditTrailList'); list.innerHTML = events.length ? `<div class="activity-list">${events.map(event => { const tone = ['blue', 'green', 'amber', 'red'].includes(event.tone) ? event.tone : 'blue'; return `<div class="activity"><div class="activity-mark ${tone}">${escapeHtml(event.icon || '·')}</div><div class="activity-copy"><strong>${escapeHtml(event.title || 'Workspace event')}</strong> ${escapeHtml(event.detail || '')}<span class="activity-time">${escapeHtml(event.time || 'Unknown time')} · ${auditEventCategory(event)}</span></div></div>`; }).join('')}</div>` : '<div class="audit-empty">No local events match this filter yet.</div>'; }
+    function matchingAuditEvents() { return activityEvents.filter(event => auditFilter === 'All events' || auditEventCategory(event) === auditFilter); }
+    function auditEventsForFilter() { return matchingAuditEvents().slice(0, auditVisibleCount); }
+    function downloadAuditTrail() { const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const rows = matchingAuditEvents(); const csv = [['Recorded', 'Category', 'Event', 'Detail'], ...rows.map(event => [event.occurredAt || event.time, auditEventCategory(event), event.title, event.detail])].map(row => row.map(csvCell).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'qualityos-audit-trail.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); recordEvent('⇩', 'blue', 'Audit trail exported', `${rows.length} ${auditFilter.toLowerCase()}`); showToast(`${rows.length} audit events exported as CSV.`); }
+    function renderAuditTrail() {
+      const root = mainContent.querySelector('.phase-view');
+      if (!root) return;
+      let card = document.getElementById('auditTrailCard');
+      if (!card) {
+        card = document.createElement('div');
+        card.id = 'auditTrailCard';
+        card.className = 'card data-card';
+        card.innerHTML = '<div class="card-header"><div><div class="card-title">Audit trail</div><div class="card-subtitle" id="auditTrailCount">Workspace history</div><div class="audit-empty">This browser keeps its active history; a PostgreSQL-backed API retains synced events append-only.</div></div><div class="inspection-controls"><select class="filter-select" id="auditTrailFilter" aria-label="Filter audit events"><option>All events</option><option>Exceptions</option><option>Verification</option><option>Decisions</option></select><button class="secondary-button" type="button" id="exportAuditTrail">Export filtered CSV</button></div></div><div id="auditTrailList" aria-live="polite"></div>';
+        root.appendChild(card);
+        const filter = card.querySelector('#auditTrailFilter');
+        filter.addEventListener('change', () => {
+          auditFilter = filter.value;
+          auditVisibleCount = auditPageSize;
+          saveAuditFilter();
+          renderAuditTrail();
+          showToast(auditFilter === 'All events' ? 'Showing all audit events.' : `Filtered to ${auditFilter.toLowerCase()}.`);
+        });
+        card.querySelector('#exportAuditTrail').addEventListener('click', downloadAuditTrail);
+      }
+      const filter = card.querySelector('#auditTrailFilter');
+      if (![...filter.options].some(option => option.value === auditFilter)) {
+        auditFilter = 'All events';
+        filter.value = auditFilter;
+        saveAuditFilter();
+      } else filter.value = auditFilter;
+      const matching = matchingAuditEvents();
+      const events = auditEventsForFilter();
+      const count = card.querySelector('#auditTrailCount');
+      if (count) count.textContent = `Showing ${events.length} of ${matching.length} matching event${matching.length === 1 ? '' : 's'}`;
+      const list = card.querySelector('#auditTrailList');
+      const remaining = matching.length - events.length;
+      const loadMore = remaining > 0
+        ? `<div class="modal-actions" style="justify-content:center;"><button class="secondary-button" type="button" id="loadMoreAuditEvents">Load ${Math.min(auditPageSize, remaining)} more · ${remaining} remaining</button></div>`
+        : '';
+      list.innerHTML = events.length
+        ? `<div class="activity-list">${events.map(event => { const tone = ['blue', 'green', 'amber', 'red'].includes(event.tone) ? event.tone : 'blue'; return `<div class="activity"><div class="activity-mark ${tone}">${escapeHtml(event.icon || '·')}</div><div class="activity-copy"><strong>${escapeHtml(event.title || 'Workspace event')}</strong> ${escapeHtml(event.detail || '')}<span class="activity-time">${escapeHtml(event.time || 'Unknown time')} · ${auditEventCategory(event)}</span></div></div>`; }).join('')}</div>${loadMore}`
+        : '<div class="audit-empty">No events match this filter yet.</div>';
+      list.querySelector('#loadMoreAuditEvents')?.addEventListener('click', () => {
+        auditVisibleCount += auditPageSize;
+        renderAuditTrail();
+        document.getElementById('loadMoreAuditEvents')?.focus();
+      });
+    }
   </script>
 </body>
 </html>
