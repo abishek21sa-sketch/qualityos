@@ -18,7 +18,21 @@ if (scriptStart < '<script>'.length || scriptEnd < 0) {
 }
 
 new vm.Script(html.slice(scriptStart, scriptEnd), { filename: 'outputs/index.html' });
-JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+const vercelConfig = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+if (vercelConfig.outputDirectory !== 'outputs' || vercelConfig.framework !== null) {
+  throw new Error('Vercel must serve the static outputs/ directory without framework detection.');
+}
+const vercelHeaders = vercelConfig.headers?.find(entry => entry.source === '/(.*)')?.headers || [];
+for (const [key, value] of [
+  ['X-Content-Type-Options', 'nosniff'],
+  ['X-Frame-Options', 'DENY'],
+  ['Referrer-Policy', 'strict-origin-when-cross-origin'],
+  ['Permissions-Policy', 'camera=(), geolocation=(), microphone=()']
+]) {
+  if (!vercelHeaders.some(header => header.key === key && header.value === value)) {
+    throw new Error(`Vercel security header missing or changed: ${key}`);
+  }
+}
 const schema = fs.readFileSync('db/schema.sql', 'utf8');
 
 const requiredMarkers = [

@@ -8,7 +8,7 @@ The repository also includes `package.json` and `scripts/validate.mjs`; run `npm
 
 Use GitHub as the source repository, Vercel for the static UI and preview deployments, and Render for the API (plus PostgreSQL when configured). The repository includes a GitHub Pages workflow as an alternative static host, but Pages is not required when Vercel is connected.
 
-Vercel serves the static UI from `outputs/` with no framework build step. The root `vercel.json` defines its deployment output and preview deployments.
+Vercel serves the static UI from `outputs/` with no framework build step. The root `vercel.json` defines its deployment output and preview deployments, and adds baseline anti-framing, MIME-sniffing, referrer, and browser-permission headers. A strict Content Security Policy is deferred until the inline app script and styles are refactored.
 
 Use Render for the API boundary beside the Vercel UI. The root `render.yaml` declares a `qualityos-api` Node web service with `/api/health` health checks and an optional static service; when Vercel is the chosen frontend, the Render static service is redundant and can be left unused.
 
