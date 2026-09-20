@@ -184,6 +184,7 @@ CREATE TABLE evidence (
 CREATE TABLE audit_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  source_key text,
   actor_id uuid REFERENCES users(id),
   entity_type text NOT NULL,
   entity_id uuid,
@@ -196,3 +197,4 @@ CREATE INDEX quality_signals_workspace_status_idx ON quality_signals (workspace_
 CREATE INDEX inspections_lot_recorded_idx ON inspections (lot_id, recorded_at DESC);
 CREATE INDEX evidence_workspace_status_idx ON evidence (workspace_id, status, created_at DESC);
 CREATE INDEX audit_events_workspace_created_idx ON audit_events (workspace_id, created_at DESC);
+CREATE UNIQUE INDEX audit_events_workspace_source_key_uq ON audit_events (workspace_id, source_key) WHERE source_key IS NOT NULL;

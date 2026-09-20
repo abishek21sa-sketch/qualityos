@@ -429,8 +429,8 @@
     function loadCapas() { try { const saved = JSON.parse(localStorage.getItem('qualityos-capas') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
     function saveCapas() { try { localStorage.setItem('qualityos-capas', JSON.stringify(capas)); } catch (error) { /* local file storage can be unavailable */ } }
     let capas = loadCapas();
-    function loadActivityEvents() { try { const saved = JSON.parse(localStorage.getItem('qualityos-activity-events') || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } }
-    function saveActivityEvents() { try { localStorage.setItem('qualityos-activity-events', JSON.stringify(activityEvents.slice(0, 8))); } catch (error) { /* local file storage can be unavailable */ } }
+    function loadActivityEvents() { try { const saved = JSON.parse(localStorage.getItem('qualityos-activity-events') || '[]'); return Array.isArray(saved) ? saved.slice(0, 200) : []; } catch (error) { return []; } }
+    function saveActivityEvents() { try { localStorage.setItem('qualityos-activity-events', JSON.stringify(activityEvents.slice(0, 200))); } catch (error) { /* local file storage can be unavailable */ } }
     let activityEvents = loadActivityEvents();
     const defaultInspectionRecords = [
       { id: 'INSP-2401', recordedAt: 'Sep 10, 2026 · 11:18', part: 'BRK-204', lot: 'L240908-17', characteristic: 'Burr height', value: '0.49 mm', result: 'Fail', defectCode: 'BURR-01', operator: 'Maya Chen', notes: 'Two points above UCL during 100% sort.' },
@@ -443,7 +443,7 @@
     function escapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
     function renderDefectCodeOptions() { const select = document.getElementById('inspectionDefect'); if (!select) return; const current = select.value; select.innerHTML = `<option>No defect</option>${defectCodes.map(defect => `<option>${escapeHtml(defect.code)} · ${escapeHtml(defect.name)}</option>`).join('')}`; if ([...select.options].some(option => option.value === current)) select.value = current; }
     renderDefectCodeOptions();
-    function recordEvent(icon, tone, title, detail) { activityEvents.unshift({ icon, tone, title, detail, time: 'Just now' }); saveActivityEvents(); if (currentView === 'overview') renderLocalActivity(); if (currentView === 'evidence' && typeof renderAuditTrail === 'function') renderAuditTrail(); }
+    function recordEvent(icon, tone, title, detail) { const now = new Date(); const id = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `AE-${now.getTime()}-${Math.random().toString(36).slice(2, 10)}`; activityEvents.unshift({ id, icon, tone, title, detail, time: now.toLocaleString(), occurredAt: now.toISOString() }); saveActivityEvents(); if (currentView === 'overview') renderLocalActivity(); if (currentView === 'evidence' && typeof renderAuditTrail === 'function') renderAuditTrail(); }
     let toastTimer;
     function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; if (id === 'signalModal') { const owner = signalOwners[activeSignalId] || activeSignalRow?.querySelectorAll('td')[5]?.textContent.trim() || 'Unassigned'; const ownerSelect = document.getElementById('signalOwner'); if (ownerSelect) ownerSelect.value = owner; const note = document.getElementById('signalNote'); if (note) note.value = signalNotes[activeSignalId] || ''; } }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); if (!modalIds.some(x => document.getElementById(x).classList.contains('open'))) document.body.style.overflow = ''; }

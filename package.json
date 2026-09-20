@@ -5,10 +5,12 @@
   "scripts": {
     "check": "node scripts/validate.mjs",
     "check:server": "node --check server.mjs && node --check db/postgres-store.mjs",
-    "check:db": "node --check scripts/migrate-postgres.mjs",
+    "check:db": "node --check scripts/migrate-postgres.mjs && node --check db/migration-runner.mjs && node --check scripts/test-migrations.mjs",
     "db:migrate": "node scripts/migrate-postgres.mjs",
     "test:api": "node scripts/test-server.mjs",
-    "test": "npm run check && npm run check:server && npm run check:db && npm run test:api",
+    "test:postgres-store": "node scripts/test-postgres-store.mjs",
+    "test:migrations": "node scripts/test-migrations.mjs",
+    "test": "npm run check && npm run check:server && npm run check:db && npm run test:api && npm run test:postgres-store && npm run test:migrations",
     "start": "node server.mjs"
   },
   "dependencies": {

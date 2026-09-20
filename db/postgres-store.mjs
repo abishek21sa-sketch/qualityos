@@ -127,14 +127,35 @@ function mapEvidenceRequest(row) {
   };
 }
 
-export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaultWorkspaceId, workspaceSlug = 'qualityos-default', workspaceName = 'QualityOS' } = {}) {
+function auditTimestamp(value) {
+  const parsed = Date.parse(String(value || ''));
+  return Number.isNaN(parsed) ? new Date().toISOString() : new Date(parsed).toISOString();
+}
+
+function mapAuditEvent(row) {
+  const detail = row.detail && typeof row.detail === 'object' && !Array.isArray(row.detail) ? row.detail : {};
+  const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString();
+  return {
+    ...detail,
+    id: detail.id || row.source_key,
+    type: row.event_type,
+    occurredAt: detail.occurredAt || createdAt,
+    time: detail.time && detail.time !== 'Just now' ? detail.time : new Date(createdAt).toLocaleString()
+  };
+}
+
+export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaultWorkspaceId, workspaceSlug = 'qualityos-default', workspaceName = 'QualityOS', poolFactory } = {}) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required for the PostgreSQL workspace store.');
   if (!isUuid(workspaceId)) throw new Error('QUALITYOS_DATABASE_WORKSPACE_ID must be a valid UUID.');
   let poolPromise;
 
   async function getPool() {
     if (!poolPromise) {
-      poolPromise = import('pg').then(({ Pool }) => new Pool({ connectionString: databaseUrl, max: 5, idleTimeoutMillis: 30000 }));
+      poolPromise = Promise.resolve().then(async () => {
+        if (typeof poolFactory === 'function') return poolFactory({ connectionString: databaseUrl, max: 5, idleTimeoutMillis: 30000 });
+        const { Pool } = await import('pg');
+        return new Pool({ connectionString: databaseUrl, max: 5, idleTimeoutMillis: 30000 });
+      });
     }
     return poolPromise;
   }
@@ -268,29 +289,75 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
     for (const [index, attachment] of (Array.isArray(attachments) ? attachments : []).entries()) await insertEvidence(attachment, 'attachment', index);
   }
 
-  async function read() {
-    const pool = await getPool();
-    const result = await pool.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1', [workspaceId]);
-    const workspace = asWorkspace(result.rows[0]);
-    const actions = await pool.query(`SELECT action_number, title, priority, status, due_at, metadata
+  async function syncAuditEvents(client, events) {
+    if (!Array.isArray(events)) return;
+    for (const [index, source] of events.entries()) {
+      if (!source || typeof source !== 'object' || Array.isArray(source)) continue;
+      const title = String(source.title || source.type || 'Workspace event').slice(0, 240);
+      const description = String(source.detail || '').slice(0, 2000);
+      const occurredAt = auditTimestamp(source.occurredAt);
+      const idSeed = JSON.stringify({ title, detail: description, time: source.time || '', index });
+      const sourceKey = typeof source.id === 'string' && source.id.length > 0
+        ? source.id.slice(0, 100)
+        : `legacy-${createHash('sha256').update(idSeed).digest('hex').slice(0, 40)}`;
+      const eventType = String(source.type || title.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'workspace.event').slice(0, 120);
+      const metadata = {
+        id: sourceKey,
+        icon: String(source.icon || '·').slice(0, 8),
+        tone: ['blue', 'green', 'amber', 'red'].includes(source.tone) ? source.tone : 'blue',
+        title,
+        detail: description,
+        time: String(source.time || new Date(occurredAt).toLocaleString()).slice(0, 120),
+        occurredAt
+      };
+      await client.query(`INSERT INTO audit_events
+        (workspace_id, source_key, entity_type, event_type, detail, created_at)
+        VALUES ($1, $2, 'workspace', $3, $4::jsonb, $5)
+        ON CONFLICT (workspace_id, source_key) WHERE source_key IS NOT NULL DO NOTHING`, [
+        workspaceId,
+        sourceKey,
+        eventType,
+        JSON.stringify(metadata),
+        occurredAt
+      ]);
+    }
+  }
+
+  async function readFrom(queryable, stateRow) {
+    const stateResult = stateRow === undefined
+      ? await queryable.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1', [workspaceId])
+      : { rows: stateRow ? [stateRow] : [] };
+    const workspace = asWorkspace(stateResult.rows[0]);
+    const actions = await queryable.query(`SELECT action_number, title, priority, status, due_at, metadata
       FROM corrective_actions WHERE workspace_id = $1
       ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, updated_at DESC`, [workspaceId]);
-    if (actions.rows.length) workspace.data = { ...workspace.data, actions: actions.rows.map(mapAction) };
-    const capas = await pool.query(`SELECT capa_number, method, status, problem_statement, due_at, metadata
+    if (actions.rows.length || Array.isArray(workspace.data.actions)) workspace.data = { ...workspace.data, actions: actions.rows.map(mapAction) };
+    const capas = await queryable.query(`SELECT capa_number, method, status, problem_statement, due_at, metadata
       FROM capas WHERE workspace_id = $1
       ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, updated_at DESC`, [workspaceId]);
-    if (capas.rows.length) workspace.data = { ...workspace.data, capas: capas.rows.map(mapCapa) };
-    const inspections = await pool.query(`SELECT i.id, i.characteristic, i.measured_value, i.unit, i.result, i.defect_code, i.notes, i.spc_rule, i.spc_limit, i.recorded_at, i.metadata, l.lot_number, p.part_number
+    if (capas.rows.length || Array.isArray(workspace.data.capas)) workspace.data = { ...workspace.data, capas: capas.rows.map(mapCapa) };
+    const inspections = await queryable.query(`SELECT i.id, i.characteristic, i.measured_value, i.unit, i.result, i.defect_code, i.notes, i.spc_rule, i.spc_limit, i.recorded_at, i.metadata, l.lot_number, p.part_number
       FROM inspections i JOIN lots l ON l.id = i.lot_id JOIN parts p ON p.id = l.part_id
       WHERE i.workspace_id = $1
       ORDER BY NULLIF(i.metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, i.recorded_at DESC`, [workspaceId]);
-    if (inspections.rows.length) workspace.data = { ...workspace.data, inspectionRecords: inspections.rows.map(mapInspection) };
-    const evidence = await pool.query(`SELECT id, file_name, content_type, status, metadata
+    if (inspections.rows.length || Array.isArray(workspace.data.inspectionRecords)) workspace.data = { ...workspace.data, inspectionRecords: inspections.rows.map(mapInspection) };
+    const evidence = await queryable.query(`SELECT id, file_name, content_type, status, metadata
       FROM evidence WHERE workspace_id = $1
       ORDER BY NULLIF(metadata->>'__qualityos_order', '')::integer ASC NULLS LAST, created_at DESC`, [workspaceId]);
     const evidenceRequests = evidence.rows.filter(row => row.metadata?.recordType !== 'attachment').map(mapEvidenceRequest);
-    if (evidenceRequests.length) workspace.data = { ...workspace.data, evidenceRequests };
+    if (evidenceRequests.length || Array.isArray(workspace.data.evidenceRequests)) workspace.data = { ...workspace.data, evidenceRequests };
+    const auditEvents = await queryable.query(`SELECT source_key, event_type, detail, created_at
+      FROM audit_events WHERE workspace_id = $1
+      ORDER BY created_at DESC, id DESC LIMIT 200`, [workspaceId]);
+    if (auditEvents.rows.length || Array.isArray(workspace.data.activityEvents)) {
+      workspace.data = { ...workspace.data, activityEvents: auditEvents.rows.map(mapAuditEvent) };
+    }
     return workspace;
+  }
+
+  async function read() {
+    const pool = await getPool();
+    return readFrom(pool);
   }
 
   async function write(payload, expectedEtag = '') {
@@ -299,8 +366,9 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
     try {
       await client.query('BEGIN');
       await ensureWorkspace(client);
+      await client.query('SELECT id FROM workspaces WHERE id = $1 FOR UPDATE', [workspaceId]);
       const result = await client.query('SELECT version, state, updated_at FROM workspace_state WHERE workspace_id = $1 FOR UPDATE', [workspaceId]);
-      const current = asWorkspace(result.rows[0]);
+      const current = await readFrom(client, result.rows[0]);
       const currentEtag = workspaceEtag(current);
       if (expectedEtag && expectedEtag !== '*' && expectedEtag !== currentEtag) {
         await client.query('ROLLBACK');
@@ -311,11 +379,13 @@ export function createPostgresWorkspaceStore({ databaseUrl, workspaceId = defaul
       await syncCapas(client, next.data.capas);
       await syncInspections(client, next.data.inspectionRecords);
       await syncEvidence(client, next.data.evidenceRequests, next.data.localEvidence);
+      await syncAuditEvents(client, next.data.activityEvents);
       await client.query(`INSERT INTO workspace_state (workspace_id, version, state, updated_at)
         VALUES ($1, $2, $3::jsonb, $4)
         ON CONFLICT (workspace_id) DO UPDATE SET version = EXCLUDED.version, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at`, [workspaceId, next.version, JSON.stringify(next.data), next.updatedAt]);
+      const persisted = await readFrom(client, { version: next.version, state: next.data, updated_at: next.updatedAt });
       await client.query('COMMIT');
-      return { workspace: next, etag: workspaceEtag(next) };
+      return { workspace: persisted, etag: workspaceEtag(persisted) };
     } catch (error) {
       try { await client.query('ROLLBACK'); } catch { /* preserve the original database error */ }
       throw error;
