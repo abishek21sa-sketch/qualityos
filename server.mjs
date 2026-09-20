@@ -255,14 +255,19 @@ export function createServer({ staticRoot = defaultStaticRoot, workspaceFile = d
   const authConfig = { apiToken, apiTokens: parseApiTokens(apiTokens) };
   const workspaceIdentifiers = new Set([workspaceId, databaseWorkspaceId, databaseWorkspaceSlug].filter(Boolean).map(String));
   const postgresStore = databaseUrl ? createPostgresWorkspaceStore({ databaseUrl, workspaceId: databaseWorkspaceId, workspaceSlug: databaseWorkspaceSlug, workspaceName: databaseWorkspaceName }) : null;
+  let fileWriteQueue = Promise.resolve();
   const readStoredWorkspace = () => postgresStore ? postgresStore.read() : readWorkspace(workspaceFile);
   const writeStoredWorkspace = async (payload, expectedEtag) => {
     if (postgresStore) return postgresStore.write(payload, expectedEtag);
-    const current = await readWorkspace(workspaceFile);
-    const currentEtag = workspaceEtag(current);
-    if (!hasMatchingIfMatch({ headers: { 'if-match': expectedEtag } }, currentEtag)) return { conflict: true, workspace: current, etag: currentEtag };
-    const workspace = await writeWorkspace(workspaceFile, payload);
-    return { workspace, etag: workspaceEtag(workspace) };
+    const pendingWrite = fileWriteQueue.then(async () => {
+      const current = await readWorkspace(workspaceFile);
+      const currentEtag = workspaceEtag(current);
+      if (!hasMatchingIfMatch({ headers: { 'if-match': expectedEtag } }, currentEtag)) return { conflict: true, workspace: current, etag: currentEtag };
+      const workspace = await writeWorkspace(workspaceFile, payload);
+      return { workspace, etag: workspaceEtag(workspace) };
+    });
+    fileWriteQueue = pendingWrite.then(() => undefined, () => undefined);
+    return pendingWrite;
   };
   return http.createServer(async (request, response) => {
     try {

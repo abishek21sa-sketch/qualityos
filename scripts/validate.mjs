@@ -45,7 +45,7 @@ for (const marker of ['CREATE TABLE workspaces', 'CREATE TABLE inspections', 'CR
   if (!schema.includes(marker)) throw new Error(`Database schema marker missing: ${marker}`);
 }
 
-for (const marker of ['recordRoute', 'recordCollections', 'hasWorkspaceAccess', "['GET', 'POST', 'PATCH']"]) {
+for (const marker of ['recordRoute', 'recordCollections', 'hasWorkspaceAccess', 'fileWriteQueue', "['GET', 'POST', 'PATCH']"]) {
   if (!server.includes(marker)) throw new Error(`API route marker missing: ${marker}`);
 }
 

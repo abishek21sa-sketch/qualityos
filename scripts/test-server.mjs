@@ -102,6 +102,19 @@ try {
   const readRecordResponse = await fetch(`${baseUrl}/api/records/actions/CA-API-1`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal((await readRecordResponse.json()).record.status, 'In progress');
 
+  const raceBaseResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer test-token' } });
+  const raceBase = await raceBaseResponse.json();
+  const racePayload = marker => ({ format: 'QualityOS browser workspace', version: 1, data: { ...raceBase.data, concurrentWriteMarker: marker } });
+  const racingWrites = await Promise.all(['writer-a', 'writer-b'].map(marker => fetch(`${baseUrl}/api/workspace`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json', 'If-Match': raceBase.etag },
+    body: JSON.stringify(racePayload(marker))
+  })));
+  assert.deepEqual(racingWrites.map(response => response.status).sort(), [200, 409]);
+  const raceFinalResponse = await fetch(`${baseUrl}/api/workspace`, { headers: { Authorization: 'Bearer test-token' } });
+  const raceFinal = await raceFinalResponse.json();
+  assert.ok(['writer-a', 'writer-b'].includes(raceFinal.data.concurrentWriteMarker));
+
   const unsupportedCollectionResponse = await fetch(`${baseUrl}/api/records/users`, { headers: { Authorization: 'Bearer test-token' } });
   assert.equal(unsupportedCollectionResponse.status, 404);
 
