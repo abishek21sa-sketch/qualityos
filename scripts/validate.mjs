@@ -8,6 +8,7 @@ const postgresStoreTest = fs.readFileSync('scripts/test-postgres-store.mjs', 'ut
 const migrationRunner = fs.readFileSync('db/migration-runner.mjs', 'utf8');
 const migrationCli = fs.readFileSync('scripts/migrate-postgres.mjs', 'utf8');
 const migrationTest = fs.readFileSync('scripts/test-migrations.mjs', 'utf8');
+const pagesWorkflow = fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8');
 const evidenceMigration = fs.readFileSync('db/migrations/002_evidence_metadata.sql', 'utf8');
 const auditMigration = fs.readFileSync('db/migrations/003_append_only_audit.sql', 'utf8');
 const scriptStart = html.indexOf('<script>') + '<script>'.length;
@@ -60,6 +61,9 @@ for (const marker of requiredMarkers) {
 }
 for (const marker of ['auditPageSize', 'matchingAuditEvents', 'loadMoreAuditEvents', 'Export filtered CSV', 'normalizeLegacyActivityEvents', 'createActivityEventId']) {
   if (!html.includes(marker)) throw new Error(`Audit history marker missing: ${marker}`);
+}
+for (const marker of ['npm test', "vars.ENABLE_GITHUB_PAGES == 'true'", "github.ref == 'refs/heads/main'", 'actions/deploy-pages@v4']) {
+  if (!pagesWorkflow.includes(marker)) throw new Error(`GitHub workflow marker missing: ${marker}`);
 }
 
 for (const marker of ['CREATE TABLE workspaces', 'CREATE TABLE inspections', 'CREATE TABLE audit_events', 'source_key text', 'audit_events_workspace_source_key_uq']) {

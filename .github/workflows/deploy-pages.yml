@@ -1,32 +1,46 @@
-name: Deploy QualityOS to GitHub Pages
+name: QualityOS checks and optional GitHub Pages deploy
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: qualityos-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Validate QualityOS
-        run: node scripts/validate.mjs
-      - name: Smoke test API boundary
-        run: node scripts/test-server.mjs
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run full QualityOS test suite
+        run: npm test
+
+  deploy-pages:
+    if: ${{ vars.ENABLE_GITHUB_PAGES == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:

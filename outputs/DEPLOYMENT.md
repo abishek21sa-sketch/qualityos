@@ -14,10 +14,10 @@ Use Render for the API boundary beside the Vercel UI. The root `render.yaml` dec
 
 ## GitHub Pages
 
-1. Create a GitHub repository and push this project, including the `outputs/` directory and `.github/workflows/deploy-pages.yml`.
-2. In repository Settings → Pages, select GitHub Actions as the source.
-3. Push to `main` or run the workflow manually from the Actions tab.
-4. GitHub Pages will publish the static files from `outputs/`.
+1. In repository Settings → Pages, select GitHub Actions as the source.
+2. In Settings → Secrets and variables → Actions → Variables, add `ENABLE_GITHUB_PAGES` with value `true`.
+3. Push to `main` or run the workflow manually from the Actions tab; without that variable, validation still runs but the Pages deploy job is skipped.
+4. When enabled, GitHub Pages publishes the static files from `outputs/`.
 
 GitHub Pages publishes static files from a repository or custom workflow. See the [GitHub Pages documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
 
