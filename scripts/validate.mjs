@@ -58,7 +58,7 @@ const requiredMarkers = [
 for (const marker of requiredMarkers) {
   if (!html.includes(marker)) throw new Error(`Required marker missing: ${marker}`);
 }
-for (const marker of ['auditPageSize', 'matchingAuditEvents', 'loadMoreAuditEvents', 'Export filtered CSV']) {
+for (const marker of ['auditPageSize', 'matchingAuditEvents', 'loadMoreAuditEvents', 'Export filtered CSV', 'normalizeLegacyActivityEvents', 'createActivityEventId']) {
   if (!html.includes(marker)) throw new Error(`Audit history marker missing: ${marker}`);
 }
 
