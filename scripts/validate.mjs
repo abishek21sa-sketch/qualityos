@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const html = fs.readFileSync('outputs/index.html', 'utf8');
+const shiftHandoffScript = fs.readFileSync('outputs/shift-handoff.js', 'utf8');
+const shiftHandoffModel = fs.readFileSync('outputs/shift-handoff-model.js', 'utf8');
 const server = fs.readFileSync('server.mjs', 'utf8');
 const postgresStore = fs.readFileSync('db/postgres-store.mjs', 'utf8');
 const postgresStoreTest = fs.readFileSync('scripts/test-postgres-store.mjs', 'utf8');
@@ -19,6 +21,14 @@ if (scriptStart < '<script>'.length || scriptEnd < 0) {
 }
 
 new vm.Script(html.slice(scriptStart, scriptEnd), { filename: 'outputs/index.html' });
+new vm.Script(shiftHandoffScript, { filename: 'outputs/shift-handoff.js' });
+new vm.Script(shiftHandoffModel, { filename: 'outputs/shift-handoff-model.js' });
+for (const marker of ['shift-handoff.css', 'shift-handoff-model.js', 'shift-handoff.js']) {
+  if (!html.includes(marker)) throw new Error(`Shift handoff asset is not linked from the app: ${marker}`);
+}
+for (const marker of ['Shift handoff', 'issueShiftHandoff', 'acceptShiftHandoff', 'browser-local', 'not a controlled production record']) {
+  if (!shiftHandoffScript.includes(marker)) throw new Error(`Shift handoff workflow marker missing: ${marker}`);
+}
 const vercelConfig = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 if (vercelConfig.outputDirectory !== 'outputs' || vercelConfig.framework !== null) {
   throw new Error('Vercel must serve the static outputs/ directory without framework detection.');
