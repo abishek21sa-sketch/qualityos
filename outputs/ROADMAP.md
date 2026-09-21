@@ -1,32 +1,27 @@
 # QualityOS roadmap
 
-## Phase 1 — Foundation (current)
+## Current slice — local batch SPC
 
-Deliver a credible, independently runnable quality-operations cockpit with a coherent domain model and one thin vertical slice:
+- Empty-by-default, manufacturing-specific analysis workspace.
+- CSV/TSV parsing, mapping, selected population scope, row-level exclusions, and source-aware JSON export.
+- Individuals–Moving Range and equal-size X̄–R charts with selected rule checks.
+- Optional specification/capability calculations with explicit caveats.
+- No live feed, real plant data, multi-user collaboration, or product-release decision.
 
-- Industrial operations visual system and application shell.
-- Fixture-backed overview with quality signals, defect family summary, and recent activity.
-- SPC-style trend signal for a real lot and supplier.
-- Investigation view that makes signal → containment → investigation → corrective action explicit.
-- Basic corrective-action creation with owner, priority, due date, notes, and activity feedback.
+## Next — validate the measurement workflow
 
-## Phase 2 — Workflow depth
+- Exercise the import and calculations against user-provided, de-identified inspection files.
+- Add golden datasets and independent reference calculations, including boundary/rounding cases.
+- Improve large-file handling, date parsing controls, subgroup diagnostics, and reproducible report versioning.
+- Establish a data contract for source identity, calibration context, units, spec revision, and timestamps before wiring any external system.
 
-- Persisted records and audit history (browser-local today, with reviewed JSON workspace backup/restore, a filterable audit trail, token-protected workspace and record-level API contracts, explicit UI Pull/Push sync, an optional transactional PostgreSQL workspace-state adapter, and a reviewed normalized schema in `db/schema.sql`).
-- Signal inbox with acknowledgement, assignment, severity, and saved filters.
-- Lot genealogy and supplier scorecards.
-- Inspection entry and defect-code management (initial browser-local inspection slice implemented).
-- Evidence upload, preview, and verification workflow (browser-local attachments now support image/PDF preview, download, and review decisions; production storage remains future work).
-- Configurable containment templates (initial browser-local extension workflow implemented).
+## Later — connected quality operations
 
-## Phase 3 — Quality intelligence
+- Only after data contracts and security are designed: authenticated persistence for datasets and analysis reports.
+- Add a historian/MES connector with replay, idempotency, gap/outage handling, and controlled alarm policy.
+- Build traceability and investigation workflows (lot, signal, nonconformance, containment, CAPA, evidence) from verified source records.
+- Harden tenant authorization, auditability, retention, backups, monitoring, and deployment operations before production use.
 
-- Full SPC rule library with configurable limits and rational subgrouping (browser-local Rule 1 UCL and Rule 4 upward-trend detection are implemented; subgrouping and additional characteristics remain future work).
-- Initial browser-local 5-Why cause chain and CAPA status workflow are implemented; expand into fishbone and a full 8D/CAPA workspace.
-- Risk-based prioritization and recurrence detection (initial signal priority, 30-day recurrence, and NCR risk-assessment RPN are implemented).
-- Effectiveness checks with before/after process capability (browser-local before/after burr-height checks plus verified-evidence closure gates implemented for CAPA and corrective actions).
-- Cross-plant benchmarking and supplier collaboration.
+## Not implemented
 
-## Explicit non-goals for Phase 1
-
-QualityOS Phase 1 does not implement a complete MES, production scheduling, all SPC rules, a full supplier portal, ERP integration, or every quality workflow. Those are intentionally deferred until the workflow foundation and data contracts are validated.
+There is no real-time analysis, connected factory feed, validated SPC package, normality assessment, automated release gate, full QMS/MES, supplier portal, or production-grade authentication. The optional API/PostgreSQL foundation is not connected to the analysis page.

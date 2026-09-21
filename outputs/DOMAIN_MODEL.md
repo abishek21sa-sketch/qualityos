@@ -1,53 +1,29 @@
-# QualityOS Phase 1 — domain model
+# QualityOS domain model
 
-QualityOS treats quality work as a traceable chain from a measurable signal to a controlled, owned action. Phase 1 uses a small fixture that exercises this chain without attempting to become a full MES, QMS, or supplier portal.
+This document describes the intended manufacturing-quality vocabulary. It is not a claim that every entity or workflow is implemented in the current app.
 
-## Core entities
+## Analysis record
 
-| Entity | Purpose | Phase 1 fields |
+The implemented analysis is scoped to one imported dataset and records its source filename, import time, mapped headers, filters, selected rows, ordering, method, rejected rows, calculations, and warnings in the downloadable report. No persistent server-side analysis record is created.
+
+| Concept | Purpose | Current status |
 | --- | --- | --- |
-| Part | The manufactured or purchased item under quality control. | `partNumber`, `revision`, `description`, `criticalCharacteristics` |
-| Supplier | The external source responsible for supplied material or processing. | `supplierId`, `name`, `site`, `qualityContact` |
-| Process | The operation and station where a measurement is made. | `processId`, `name`, `station`, `line` |
-| Lot | A traceability boundary for material or production. | `lotId`, `partNumber`, `supplierId`, `receivedAt`, `quantity`, `status` |
-| Inspection | A measurement or inspection event against a lot, part, or process. | `inspectionId`, `lotId`, `characteristic`, `value`, `unit`, `measuredAt`, `inspector` |
-| Defect | A classified departure from a requirement. | `defectId`, `family`, `code`, `severity`, `sourceInspectionId` |
-| Quality signal | A detected pattern or threshold breach that merits attention. | `signalId`, `signalType`, `severity`, `rule`, `detectedAt`, `status`, `sourceIds[]` |
-| Nonconformance | The controlled record for a confirmed or suspected quality issue. | `ncrId`, `title`, `riskScore`, `owner`, `lotIds[]`, `status` |
-| Containment | Immediate action that limits exposure while cause is investigated. | `containmentId`, `ncrId`, `scope`, `action`, `verifiedBy`, `verifiedAt` |
-| Corrective action | An owned action intended to remove the cause and prevent recurrence. | `actionId`, `ncrId`, `title`, `owner`, `dueAt`, `priority`, `status`, `acceptanceCriteria` |
-| CAPA / 8D | A structured root-cause and systemic-improvement record. | `capaId`, `ncrId`, `method`, `team`, `rootCause`, `effectivenessCheck` |
-| Evidence | A file, image, measurement set, or note that supports a quality decision. | `evidenceId`, `entityType`, `entityId`, `kind`, `name`, `uploadedBy`, `uploadedAt` |
+| Measurement | Numeric observation of one characteristic with a unit and source row. | Parsed and analyzed in browser memory. |
+| Characteristic | The measurable quality property (for example, diameter). | User-mapped or entered; unlike characteristics must be separated. |
+| Part / process | Defines where measurements came from. | Optional mapping/filter; app warns when absent. |
+| Lot / batch | Traceability scope for a production/material group. | Optional mapping/filter; pooling is explicit. |
+| Rational subgroup | Measurements taken under comparable conditions for X̄–R. | Optional; complete equal-sized subgroups, n=2–10. |
+| Specification | Customer/engineering LSL and/or USL. | Optional; separate from statistically estimated control limits. |
+| Analysis report | Reproducible calculations plus source/provenance and caveats. | Downloadable JSON; not persisted by QualityOS. |
 
-## Relationships
+## Broader QMS concepts
 
-```text
-Part ──< Lot >── Supplier
-  │       │
-  └──< Inspection >── Process
-            │
-            └──< Defect >── Quality signal
-                              │
-                              └── Nonconformance
-                                   ├── Containment
-                                   ├── Corrective action
-                                   ├── CAPA / 8D
-                                   └── Evidence
-```
+Parts, suppliers, lots, inspections, defects, signals, nonconformances, containment, corrective actions, CAPA/8D, and evidence remain target-domain concepts for later workflow development. There is no seeded NCR, supplier, person, plant, or production dataset in the deployed analysis page.
 
-## Status vocabulary
+## Data integrity rules
 
-- Signal: `new`, `acknowledged`, `contained`, `investigating`, `resolved`, `dismissed`
-- Lot: `released`, `quarantined`, `under_sort`, `rejected`, `closed`
-- Action: `open`, `in_progress`, `blocked`, `complete`, `effectiveness_check`
-- Evidence: `requested`, `received`, `verified`, `rejected`
-
-## Phase 1 fixture
-
-The UI fixture centers on `BRK-204`, lot `L240908-17`, supplied by Northstar Precision. A burr-height trend crosses the `0.42 mm` upper control limit on Press 04. The path demonstrated in the app is:
-
-1. SPC rule 1 detects a trend and creates a quality signal.
-2. The lot is quarantined and a 100% sort begins.
-3. `NCR-0264` captures the affected lot, supplier, owner, and suspected tool-wear cause.
-4. The operator creates `CA-0142` with an owner, due date, and acceptance criteria.
-
+- Never combine unlike characteristics or units in one chart.
+- Treat row order as chronological only when verified timestamps can be parsed; otherwise disclose CSV row ordering.
+- Preserve source row numbers and report invalid measurements instead of silently coercing them.
+- Keep control limits distinct from specification limits.
+- Treat capability indices as conditional on stability and distribution assumptions; the app does not qualify those assumptions.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const model = require('../outputs/shift-handoff-model.js');
+const model = require('../archive/demo/shift-handoff-model.js');
 const draft = model.createShiftHandoffDraft(new Date('2026-09-21T15:30:00Z'));
 assert.match(draft.date, /^\d{4}-\d{2}-\d{2}$/);
 assert.equal(draft.shift, 'Shift B');

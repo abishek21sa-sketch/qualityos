@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const html = fs.readFileSync('outputs/index.html', 'utf8');
-const shiftHandoffScript = fs.readFileSync('outputs/shift-handoff.js', 'utf8');
-const shiftHandoffModel = fs.readFileSync('outputs/shift-handoff-model.js', 'utf8');
+const qualityLabScript = fs.readFileSync('outputs/quality-lab.js', 'utf8');
+const qualityLabModel = fs.readFileSync('outputs/quality-lab-model.js', 'utf8');
 const server = fs.readFileSync('server.mjs', 'utf8');
 const postgresStore = fs.readFileSync('db/postgres-store.mjs', 'utf8');
 const postgresStoreTest = fs.readFileSync('scripts/test-postgres-store.mjs', 'utf8');
@@ -13,21 +13,21 @@ const migrationTest = fs.readFileSync('scripts/test-migrations.mjs', 'utf8');
 const pagesWorkflow = fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8');
 const evidenceMigration = fs.readFileSync('db/migrations/002_evidence_metadata.sql', 'utf8');
 const auditMigration = fs.readFileSync('db/migrations/003_append_only_audit.sql', 'utf8');
-const scriptStart = html.indexOf('<script>') + '<script>'.length;
-const scriptEnd = html.indexOf('</script>', scriptStart);
-
-if (scriptStart < '<script>'.length || scriptEnd < 0) {
-  throw new Error('Embedded application script was not found.');
+new vm.Script(qualityLabScript, { filename: 'outputs/quality-lab.js' });
+new vm.Script(qualityLabModel, { filename: 'outputs/quality-lab-model.js' });
+for (const marker of ['quality-lab.css', 'quality-lab-model.js', 'quality-lab.js']) {
+  if (!html.includes(marker)) throw new Error(`Quality Lab asset is not linked from the app: ${marker}`);
 }
-
-new vm.Script(html.slice(scriptStart, scriptEnd), { filename: 'outputs/index.html' });
-new vm.Script(shiftHandoffScript, { filename: 'outputs/shift-handoff.js' });
-new vm.Script(shiftHandoffModel, { filename: 'outputs/shift-handoff-model.js' });
-for (const marker of ['shift-handoff.css', 'shift-handoff-model.js', 'shift-handoff.js']) {
-  if (!html.includes(marker)) throw new Error(`Shift handoff asset is not linked from the app: ${marker}`);
+for (const marker of ['No inspection data is loaded', 'Select inspection CSV', 'not uploaded', 'no MES / PLC connection', 'Control limits are estimated from the selected data']) {
+  if (!qualityLabScript.includes(marker)) throw new Error(`Quality Lab transparency marker missing: ${marker}`);
 }
-for (const marker of ['Shift handoff', 'issueShiftHandoff', 'acceptShiftHandoff', 'browser-local', 'not a controlled production record']) {
-  if (!shiftHandoffScript.includes(marker)) throw new Error(`Shift handoff workflow marker missing: ${marker}`);
+for (const marker of ['parseCsv', 'prepareMeasurements', 'I–MR', 'X̄–R', '8 consecutive points', '6 consecutive points', 'capability']) {
+  if (!qualityLabModel.includes(marker)) throw new Error(`Quality Lab analysis marker missing: ${marker}`);
+}
+if (server.includes('fixture-backed') || server.includes('activeSignals: 14')) throw new Error('API overview must not publish fixture-backed live-looking metrics.');
+if (!html.includes('<body class="quality-lab-mode">')) throw new Error('The empty-by-default Quality Lab must be the visible app shell.');
+for (const marker of ['Maya Chen', 'Apex Motion', 'NCR-0264', 'shift-handoff.js', 'shift-handoff-model.js']) {
+  if (html.includes(marker)) throw new Error(`Legacy demo content must not ship in the visible app: ${marker}`);
 }
 const vercelConfig = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 if (vercelConfig.outputDirectory !== 'outputs' || vercelConfig.framework !== null) {
@@ -46,32 +46,6 @@ for (const [key, value] of [
 }
 const schema = fs.readFileSync('db/schema.sql', 'utf8');
 
-const requiredMarkers = [
-  'QualityOS',
-  'Burr height is trending above the upper control limit',
-  'NCR-0264',
-  'containmentChecklist',
-  'evidenceRequestModal',
-  'capaModal',
-  'exportQualityPacket',
-  'apiSyncModal',
-  'apiRequest',
-  '/api/session',
-  'apiRecordCollection',
-  'pullApiRecords',
-  'pushApiRecords',
-  'If-Match',
-  'apiWorkspaceEtag',
-  'apiConflictModal',
-  'recoverApiConflict'
-];
-
-for (const marker of requiredMarkers) {
-  if (!html.includes(marker)) throw new Error(`Required marker missing: ${marker}`);
-}
-for (const marker of ['auditPageSize', 'matchingAuditEvents', 'loadMoreAuditEvents', 'Export filtered CSV', 'normalizeLegacyActivityEvents', 'createActivityEventId']) {
-  if (!html.includes(marker)) throw new Error(`Audit history marker missing: ${marker}`);
-}
 for (const marker of ['npm test', "vars.ENABLE_GITHUB_PAGES == 'true'", "github.ref == 'refs/heads/main'", 'actions/deploy-pages@v4']) {
   if (!pagesWorkflow.includes(marker)) throw new Error(`GitHub workflow marker missing: ${marker}`);
 }

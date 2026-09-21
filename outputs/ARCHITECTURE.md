@@ -1,68 +1,28 @@
 # QualityOS architecture boundary
 
-## Current demo
+## Current analysis path
 
 ```text
-Browser
-  ├── Static HTML / CSS / JavaScript
-  ├── Fixture-backed quality views
-  └── localStorage for demo records and audit events
-       └── JSON export for NCR handoff
+User-selected CSV/TSV
+  → browser memory only
+  → explicit field mapping and population scope
+  → deterministic batch I–MR or X̄–R analysis
+  → chart, rule review, data-quality report, JSON export
 ```
 
-This is intentionally suitable for GitHub Pages, Vercel static hosting, or Render Static Site. There is no server-side secret, database, or authenticated user state in the current build.
+The static Vercel site serves `outputs/`. The analysis flow makes no request to a server. Imported rows are cleared when the page is reloaded or the user clears the session. No sample readings or named operator are loaded by default.
 
-## First API boundary
+## Separate API foundation
 
-The repository now includes a dependency-free Node server for the next migration step. It serves the same `outputs/` UI and exposes overview, workspace, and record-level contracts:
+`server.mjs` exposes health, an empty/no-source overview, and token-protected workspace and record contracts. File persistence is the default; PostgreSQL support is optional when `DATABASE_URL` is configured. The static analysis page does not call these endpoints, upload files, persist its results, or receive live data from them. The API overview intentionally reports no connected source and no metrics.
 
 ```text
-GET /api/health
-GET /api/quality/overview
-GET /api/workspace/overview  (compatibility alias)
-GET /api/records/:collection
-GET /api/records/:collection/:id
-POST /api/records/:collection
-PATCH /api/records/:collection/:id
+Quality Lab (browser, offline)       Experimental API (not connected to UI)
+CSV → map → analyze → export         token → workspace / record routes → file or PostgreSQL
 ```
 
-The overview response is still fixture-backed. The `/api/workspace` endpoint supports token-protected `GET` and `PUT` operations against a versioned workspace, with an 8 MB request limit. File persistence is the default; when `DATABASE_URL` is configured, the optional PostgreSQL workspace-state adapter uses `workspace_state` and a row lock for transactional ETag checks. Corrective actions, CAPAs, inspections, and evidence metadata are synchronized to `corrective_actions`, `capas`, `inspections`, and `evidence` in PostgreSQL mode; inspection migration resolves parts and lots while preserving UI/SPC fields in metadata. Browser attachment bytes remain in the JSON bridge until object storage is added. Record routes currently cover `actions`, `evidence`, `inspections`, and `capas`, and use the same bearer token with bounded payloads. `db/schema.sql` defines the reviewed PostgreSQL target shape; object-storage uploads, row-level authorization, and conflict-review UX remain future boundaries.
+ETags and PostgreSQL workspace/record synchronization provide an API prototype, not production identity, tenant isolation, or a real-time data pipeline. Evidence/object storage and full authorization are not implemented.
 
-The static UI's API sync panel uses explicit workspace Pull/Push actions plus collection-level Pull/Push actions for the four record routes. Collection Pull replaces only the selected local collection; collection Push reads remote IDs and upserts local records one at a time. It remembers only the API URL in browser storage and keeps the token in page memory, preserving localStorage as the offline fallback while a full authenticated session, conflict-review experience, and production object storage are still being built.
+## Real-time boundary
 
-The interim auth boundary accepts the legacy `QUALITYOS_API_TOKEN` as an admin-compatible token or a JSON `QUALITYOS_API_TOKENS` list of `{ token, subject, role, workspaceId }` identities. `GET /api/session` reports the non-secret identity and effective read/mutate permission. This is environment-managed access control, not a replacement for login, OAuth, session rotation, or database-backed workspace membership.
-
-Workspace and record responses include an HTTP `ETag` and JSON `etag` value. Mutations accept an optional `If-Match`; a stale tag returns `409` with the current tag, giving the browser a safe pull-and-review recovery path instead of silent last-write-wins behavior.
-
-## Target production shape
-
-```text
-Browser app
-  ├── Authenticated API
-  │    ├── Quality domain service
-  │    ├── Audit/event service
-  │    └── Notification worker
-  ├── Relational database
-  │    ├── Parts, suppliers, lots, inspections
-  │    ├── Signals, NCRs, containment, actions
-  │    └── CAPA / 8D and effectiveness checks
-  └── Object storage
-       └── Evidence files, inspection exports, signed quality packets
-```
-
-## Migration sequence
-
-1. Keep the current fixture and UI contract stable.
-2. Replace the local fixture with a read-only `/api/quality/overview` response.
-3. Move actions, acknowledgements, dispositions, CAPA records, and audit events to authenticated API mutations; the current record routes and PostgreSQL schema establish the contract to harden.
-4. Add object-storage uploads and replace the current browser-attachment bridge; evidence metadata is now database-backed.
-5. Add role-based access, supplier access boundaries, and immutable audit events.
-6. Add SPC computation and notification jobs behind the API; keep the current UI focused on decisions.
-
-## Hosting recommendation
-
-- GitHub Pages: first public demo and portfolio review.
-- Vercel: best fit for preview-driven UI iteration and a future frontend/API split.
-- Render: best fit once the static UI sits beside a persistent API and database service.
-
-Keep the current static deployment as the demo surface until authentication, persistence, and evidence access controls exist. Quality records should not rely on browser `localStorage` beyond this prototype stage.
+Real-time SPC is future work. It requires an approved source adapter (for example a historian or MES), timestamp/identity contracts, authentication and plant-level authorization, persistence, replay/idempotency, outage behavior, and operations for versioned rules and alarms. A static host cannot supply those on its own. Do not use the current batch estimates as automatic machine or lot-release decisions.

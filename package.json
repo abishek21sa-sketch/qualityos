@@ -9,10 +9,10 @@
     "db:migrate": "node scripts/migrate-postgres.mjs",
     "test:api": "node scripts/test-server.mjs",
     "test:postgres-store": "node scripts/test-postgres-store.mjs",
-    "test:audit-events": "node scripts/test-audit-events.mjs",
     "test:shift-handoff": "node scripts/test-shift-handoff.mjs",
+    "test:quality-lab": "node scripts/test-quality-lab-model.mjs",
     "test:migrations": "node scripts/test-migrations.mjs",
-    "test": "npm run check && npm run check:server && npm run check:db && npm run test:api && npm run test:postgres-store && npm run test:audit-events && npm run test:shift-handoff && npm run test:migrations",
+    "test": "npm run check && npm run check:server && npm run check:db && npm run test:api && npm run test:postgres-store && npm run test:shift-handoff && npm run test:quality-lab && npm run test:migrations",
     "start": "node server.mjs"
   },
   "dependencies": {

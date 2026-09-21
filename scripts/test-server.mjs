@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createServer } from '../server.mjs';
 
 const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'qualityos-api-'));
-const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token', apiTokens: [{ token: 'supplier-token', subject: 'supplier-portal', role: 'supplier', workspaceId: 'apex-motion-plant-04' }, { token: 'wrong-workspace-token', subject: 'other-plant', role: 'quality_engineer', workspaceId: 'other-plant' }] });
+const server = createServer({ workspaceFile: path.join(temporaryRoot, 'workspace.json'), apiToken: 'test-token', apiTokens: [{ token: 'supplier-token', subject: 'supplier-portal', role: 'supplier', workspaceId: 'qualityos-local-analysis' }, { token: 'wrong-workspace-token', subject: 'other-plant', role: 'quality_engineer', workspaceId: 'other-plant' }] });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;
@@ -20,8 +20,11 @@ try {
   const overviewResponse = await fetch(`${baseUrl}/api/quality/overview`);
   assert.equal(overviewResponse.status, 200);
   const overview = await overviewResponse.json();
-  assert.equal(overview.workspace.id, 'apex-motion-plant-04');
-  assert.equal(overview.metrics.activeSignals, 14);
+  assert.equal(overview.workspace.id, 'qualityos-local-analysis');
+  assert.equal(overview.workspace.mode, 'offline-csv');
+  assert.equal(overview.dataSource.connected, false);
+  assert.equal(overview.dataSource.recordCount, 0);
+  assert.equal(overview.metrics, null);
 
   const aliasResponse = await fetch(`${baseUrl}/api/workspace/overview`);
   assert.equal(aliasResponse.status, 200);

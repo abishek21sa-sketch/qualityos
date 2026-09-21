@@ -25,21 +25,17 @@ const recordCollections = {
 const overviewPayload = {
   apiVersion,
   workspace: {
-    id: 'apex-motion-plant-04',
-    name: 'Apex Motion · Plant 04',
-    mode: 'fixture-backed',
-    state: 'browser-local'
+    id: 'qualityos-local-analysis',
+    name: 'QualityOS local analysis',
+    mode: 'offline-csv',
+    state: 'no-dataset-loaded'
   },
-  metrics: {
-    activeSignals: 14,
-    escalatedInvestigations: 2,
-    firstPassYield: 94.8,
-    supplierActionsDue: 3
-  },
+  dataSource: { connected: false, kind: null, recordCount: 0, note: 'No manufacturing data source is configured.' },
+  metrics: null,
   contracts: {
-    overview: 'read-only migration contract',
+    overview: 'no dataset configured; metrics intentionally omitted',
     mutations: 'authenticated workspace and record endpoints',
-    persistence: 'file-backed prototype'
+    persistence: 'user-provided workspace records only'
   }
 };
 
