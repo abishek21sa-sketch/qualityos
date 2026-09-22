@@ -6,6 +6,7 @@
 - CSV/TSV parsing, mapping, selected population scope, row-level exclusions, and source-aware JSON export.
 - Individuals–Moving Range and equal-size X̄–R charts with selected rule checks.
 - Optional specification/capability calculations with explicit caveats.
+- Measurement-system traceability fields for instrument/gage, operator, and calibration-due review.
 - No live feed, real plant data, multi-user collaboration, or product-release decision.
 
 ## Next — validate the measurement workflow
@@ -13,7 +14,7 @@
 - Exercise the import and calculations against user-provided, de-identified inspection files.
 - Add golden datasets and independent reference calculations, including boundary/rounding cases.
 - Improve large-file handling, date parsing controls, subgroup diagnostics, and reproducible report versioning.
-- Establish a data contract for source identity, calibration context, units, spec revision, and timestamps before wiring any external system.
+- Establish a stronger data contract for calibration certificate identity, measurement uncertainty, units, spec revision, and timestamps before wiring any external system.
 
 ## Later — connected quality operations
 

@@ -15,6 +15,8 @@ The implemented analysis is scoped to one imported dataset and records its sourc
 | Rational subgroup | Measurements taken under comparable conditions for X̄–R. | Optional; complete equal-sized subgroups, n=2–10. |
 | Specification | Customer/engineering LSL and/or USL. | Optional; separate from statistically estimated control limits. |
 | Analysis report | Reproducible calculations plus source/provenance and caveats. | Downloadable JSON; not persisted by QualityOS. |
+| Measurement system | Instrument/gage identity and calibration context for a reading. | Optional mapping; unlike instruments must be scoped separately, and expired/invalid due dates are flagged. |
+| Operator | Person or role producing the reading. | Optional mapping; missing values are counted. |
 
 ## Broader QMS concepts
 

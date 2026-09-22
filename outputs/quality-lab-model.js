@@ -83,6 +83,9 @@
       lot: ['lotnumber', 'lot', 'batchnumber', 'batch', 'batchid'],
       subgroup: ['subgroup', 'subgroupid', 'rationalgroup', 'samplegroup'],
       unit: ['unit', 'units', 'measurementunit'],
+      instrument: ['instrument', 'instrumentid', 'gage', 'gageid', 'measuringinstrument', 'measurementdevice'],
+      operator: ['operator', 'operatorid', 'inspector', 'inspectorid', 'technician'],
+      calibrationDue: ['calibrationdue', 'calibrationduedate', 'caldue', 'calibrationexpiry', 'calibrationexpiration'],
       lsl: ['lsl', 'lowerlimit', 'lowerspeclimit', 'lowerspecificationlimit'],
       usl: ['usl', 'upperlimit', 'upperspeclimit', 'upperspecificationlimit']
     };
@@ -137,13 +140,16 @@
     return { value: distinct.length === 1 && !invalid ? distinct[0] : null, varying: distinct.length > 1, invalid, present: numbers.length > 0 };
   }
 
-  function prepareMeasurements(parsed, mapping, { characteristicName = '', filters = {} } = {}) {
+  function prepareMeasurements(parsed, mapping, { characteristicName = '', filters = {}, now = Date.now() } = {}) {
     if (!Number.isInteger(mapping.value) || mapping.value < 0) throw new Error('Map the required measurement-value column.');
     const measurements = [];
     const rejectedRows = [];
     let filteredRows = 0;
     let invalidTimestampRows = 0;
     let missingSubgroupRows = 0;
+    let missingOperatorRows = 0;
+    let invalidCalibrationDueRows = 0;
+    let expiredCalibrationRows = 0;
     for (let index = 0; index < parsed.rows.length; index += 1) {
       const row = parsed.rows[index];
       const get = key => Number.isInteger(mapping[key]) && mapping[key] >= 0 ? String(row[mapping[key]] ?? '').trim() : '';
@@ -151,7 +157,10 @@
       const part = get('part');
       const lot = get('lot');
       const unit = get('unit');
-      if ((filters.characteristic && characteristic !== filters.characteristic) || (filters.part && filters.part !== '__all__' && part !== filters.part) || (filters.lot && filters.lot !== '__all__' && lot !== filters.lot) || (filters.unit && unit !== filters.unit)) {
+      const instrument = get('instrument');
+      const operator = get('operator');
+      const calibrationDue = get('calibrationDue');
+      if ((filters.characteristic && characteristic !== filters.characteristic) || (filters.part && filters.part !== '__all__' && part !== filters.part) || (filters.lot && filters.lot !== '__all__' && lot !== filters.lot) || (filters.unit && filters.unit !== unit) || (filters.instrument && filters.instrument !== '__all__' && instrument !== filters.instrument)) {
         filteredRows += 1;
         continue;
       }
@@ -170,14 +179,24 @@
       }
       const subgroup = get('subgroup');
       if (Number.isInteger(mapping.subgroup) && mapping.subgroup >= 0 && !subgroup) missingSubgroupRows += 1;
-      measurements.push({ sourceRow, value, timestamp, timestampMs, characteristic: characteristic || 'Unspecified characteristic', part, lot, unit, subgroup });
+      if (Number.isInteger(mapping.operator) && mapping.operator >= 0 && !operator) missingOperatorRows += 1;
+      let calibrationDueMs = null;
+      if (Number.isInteger(mapping.calibrationDue) && mapping.calibrationDue >= 0 && calibrationDue) {
+        const calibrationDateValue = /^\d{4}-\d{2}-\d{2}$/.test(calibrationDue) ? `${calibrationDue}T23:59:59.999Z` : calibrationDue;
+        calibrationDueMs = Date.parse(calibrationDateValue);
+        if (!Number.isFinite(calibrationDueMs)) { calibrationDueMs = null; invalidCalibrationDueRows += 1; }
+        else if (calibrationDueMs < now) expiredCalibrationRows += 1;
+      }
+      measurements.push({ sourceRow, value, timestamp, timestampMs, characteristic: characteristic || 'Unspecified characteristic', part, lot, unit, instrument, operator, calibrationDue, calibrationDueMs, subgroup });
     }
     const timeOrdered = measurements.length > 0 && Number.isInteger(mapping.timestamp) && measurements.every(item => item.timestampMs !== null);
     if (timeOrdered) measurements.sort((left, right) => left.timestampMs - right.timestampMs || left.sourceRow - right.sourceRow);
     const selectedRows = measurements.map(item => parsed.rows[item.sourceRow - 2]);
     const lowerSpec = constantSpec(selectedRows, mapping.lsl);
     const upperSpec = constantSpec(selectedRows, mapping.usl);
-    return { measurements, rejectedRows, filteredRows, invalidTimestampRows, missingSubgroupRows, timeOrdered, lowerSpec, upperSpec, sourceRowCount: parsed.rows.length };
+    const instrumentValues = [...new Set(measurements.map(item => item.instrument).filter(Boolean))];
+    const operatorValues = [...new Set(measurements.map(item => item.operator).filter(Boolean))];
+    return { measurements, rejectedRows, filteredRows, invalidTimestampRows, missingSubgroupRows, missingOperatorRows, invalidCalibrationDueRows, expiredCalibrationRows, instrumentValues, operatorValues, timeOrdered, lowerSpec, upperSpec, sourceRowCount: parsed.rows.length };
   }
 
   function mean(values) { return values.reduce((sum, value) => sum + value, 0) / values.length; }
@@ -323,6 +342,10 @@
     if (prepared.lowerSpec.invalid || prepared.upperSpec.invalid) warnings.push('Some mapped specification-limit values could not be parsed. Confirm the limit columns before interpreting capability.');
     if (prepared.rejectedRows.length) warnings.push(`${prepared.rejectedRows.length} row(s) with invalid measurements were excluded; inspect the row report.`);
     if (prepared.invalidTimestampRows) warnings.push(`${prepared.invalidTimestampRows} timestamp value(s) were unparseable; CSV row order was retained.`);
+    if (!prepared.instrumentValues.length) warnings.push('Measurement-system identity was not provided; variation cannot be attributed to a specific instrument or gage.');
+    if (prepared.missingOperatorRows) warnings.push(`${prepared.missingOperatorRows} selected row(s) have no operator / inspector value.`);
+    if (prepared.invalidCalibrationDueRows) warnings.push(`${prepared.invalidCalibrationDueRows} calibration due date value(s) were unparseable.`);
+    if (prepared.expiredCalibrationRows) warnings.push(`${prepared.expiredCalibrationRows} selected row(s) were measured after the mapped calibration due date; review measurement validity.`);
     if (withinSigma === 0) warnings.push('Within-process variation is zero in this sample; capability ratios are undefined. Check resolution and repeated values.');
     return {
       method: chartType,

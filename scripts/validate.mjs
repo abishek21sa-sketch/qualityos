@@ -24,6 +24,9 @@ for (const marker of ['No inspection data is loaded', 'Select inspection CSV', '
 for (const marker of ['parseCsv', 'prepareMeasurements', 'I–MR', 'X̄–R', '8 consecutive points', '6 consecutive points', 'capability']) {
   if (!qualityLabModel.includes(marker)) throw new Error(`Quality Lab analysis marker missing: ${marker}`);
 }
+for (const marker of ['Instrument / gage', 'Calibration due date', 'Expired calibration rows']) {
+  if (!qualityLabScript.includes(marker)) throw new Error(`Quality Lab traceability marker missing: ${marker}`);
+}
 if (server.includes('fixture-backed') || server.includes('activeSignals: 14')) throw new Error('API overview must not publish fixture-backed live-looking metrics.');
 if (!html.includes('<body class="quality-lab-mode">')) throw new Error('The empty-by-default Quality Lab must be the visible app shell.');
 for (const marker of ['Maya Chen', 'Apex Motion', 'NCR-0264', 'shift-handoff.js', 'shift-handoff-model.js']) {

@@ -27,6 +27,18 @@ assert.equal(prepared.timeOrdered, true);
 assert.equal(prepared.lowerSpec.value, 8);
 assert.equal(prepared.upperSpec.value, 12);
 
+const traceCsv = model.parseCsv('timestamp,value,instrument,operator,calibration_due\n2026-09-01T08:00:00Z,10,GAGE-1,Alice,2026-09-01\n2026-09-01T08:01:00Z,10.1,GAGE-1,,not-a-date\n2026-09-01T08:02:00Z,9.9,GAGE-2,Bob,2099-01-01');
+const traceMapping = Object.fromEntries(['timestamp', 'value', 'instrument', 'operator', 'calibrationDue'].map(key => [key, model.suggestColumn(traceCsv.headers, key)]));
+const tracePrepared = model.prepareMeasurements(traceCsv, traceMapping, { now: Date.parse('2026-09-02T00:00:00Z'), filters: { instrument: 'GAGE-1' } });
+assert.equal(tracePrepared.measurements.length, 2);
+assert.equal(tracePrepared.filteredRows, 1);
+assert.deepEqual(tracePrepared.instrumentValues, ['GAGE-1']);
+assert.equal(tracePrepared.missingOperatorRows, 1);
+assert.equal(tracePrepared.invalidCalibrationDueRows, 1);
+assert.equal(tracePrepared.expiredCalibrationRows, 1);
+const traceResult = model.analyzeMeasurements(tracePrepared);
+assert.ok(traceResult.warnings.some(warning => warning.includes('after the mapped calibration due date')));
+
 const subgroupResult = model.analyzeMeasurements(prepared, { subgroup: true, lsl: 8, usl: 12 });
 assert.equal(subgroupResult.method, 'X̄–R');
 assert.equal(subgroupResult.count, 6);

@@ -9,6 +9,7 @@ QualityOS is currently a browser-local manufacturing measurement-analysis workbe
 - Analyze ordered individual measurements with I–MR, or rational subgroups of equal size 2–10 with X̄–R.
 - Calculate chart limits from the selected batch and review selected signals: points beyond limits, eight points on one side of center, six strictly increasing/decreasing points, and range-chart limit breaches.
 - Calculate capability only when specification limits are supplied. Results are explicitly preliminary; the app does not test normality or make a product-release decision.
+- Map instrument/gage, operator, and calibration-due fields; unlike instruments cannot be silently pooled, and missing, invalid, or expired calibration traceability is surfaced in the report.
 - Export the selected-row analysis and provenance as JSON.
 
 ## Run locally
